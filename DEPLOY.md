@@ -33,16 +33,15 @@ git push              # ya no vuelve a pedir credenciales
 ### Opción C · Clave SSH
 
 ```bash
-ssh-keygen -t ed25519 -C "tu-correo@ejemplo.cl"   # solo si aún no tienes una clave
-gh ssh-key add ~/.ssh/id_ed25519.pub --title "Equipo de desarrollo"
+# Si aún no tienes una clave SSH, genera una con `ssh-keygen`
+gh ssh-key add ~/.ssh/<tu-clave>.pub --title "Equipo de desarrollo"
 # (o manualmente en https://github.com/settings/keys)
 git remote set-url origin git@github.com:<tu-usuario>/<tu-repo>.git
 ssh -T git@github.com   # debe responder: "Hi <tu-usuario>! You've successfully authenticated..."
 ```
 
-> Si tu clave SSH tiene **passphrase**, Git la pedirá en cada operación a menos
-> que tengas un agente activo (`eval "$(ssh-agent -s)"` y luego
-> `ssh-add ~/.ssh/id_ed25519`). Si prefieres evitarlo, usa la Opción A.
+> Si tu clave tiene **passphrase**, Git la pedirá en cada operación a menos que
+> tengas un agente SSH activo. Si prefieres evitarlo, usa la Opción A.
 
 ---
 

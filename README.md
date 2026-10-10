@@ -35,15 +35,6 @@ El sistema conecta a **tres actores**:
 - Una cuenta de **Resend** (gratuita)
 - Credenciales de **Google Cloud** para el OAuth
 
-### ⚠️ Nota para usuarios de Windows
-
-Si el proyecto está en una **ruta de red** o en el filesystem de una distribución
-de **WSL** accedido por UNC (por ejemplo `\\wsl.localhost\...`), ejecuta siempre
-`npm install` y los demás scripts de npm **desde el entorno Linux** (WSL, Git
-Bash, etc.). El `cmd.exe` de Windows no admite rutas UNC como directorio de
-trabajo, por lo que los scripts `postinstall` fallan con
-`Cannot find module 'C:\Windows\postinstall.js'`.
-
 ---
 
 ## 1. Instalación
