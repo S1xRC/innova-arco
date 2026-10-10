@@ -55,7 +55,7 @@ export default async function HomePage() {
             Ley de Protección de Datos Personales · Chile
           </Badge>
           <h1 className="max-w-3xl text-4xl font-bold tracking-tight sm:text-5xl">
-            Derechos ARCO para conductores de faenas mineras
+            Derechos ARCO para conductores de empresas mineras
           </h1>
           <p className="text-muted-foreground max-w-2xl text-lg">
             {APP_DESCRIPTION} Los proveedores gestionan los reclamos y las

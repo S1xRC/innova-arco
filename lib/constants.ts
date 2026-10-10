@@ -32,4 +32,4 @@ export const AUDIT_STATUS_LABELS: Record<DeletionStatus, string> = {
 
 export const APP_NAME = "Innova ARCO";
 export const APP_DESCRIPTION =
-  "Plataforma para gestionar los derechos ARCO de conductores en faenas mineras.";
+  "Plataforma para gestionar los derechos ARCO de conductores en empresas mineras.";
