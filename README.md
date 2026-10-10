@@ -35,26 +35,20 @@ El sistema conecta a **tres actores**:
 - Una cuenta de **Resend** (gratuita)
 - Credenciales de **Google Cloud** para el OAuth
 
-### ⚠️ Si trabajas sobre el sistema de archivos de WSL desde Windows
+### ⚠️ Nota para usuarios de Windows
 
-Este proyecto vive en el filesystem de WSL (`/home/cris/Innova`). **No ejecutes
-`npm install` desde Windows usando la ruta UNC** (`\\wsl.localhost\...`): el
-`cmd.exe` de Windows no admite rutas UNC como directorio de trabajo y los
-scripts `postinstall` fallan con `Cannot find module 'C:\Windows\postinstall.js'`.
-
-Ejecuta siempre los comandos **dentro de WSL**, sobre la ruta nativa:
-
-```bash
-wsl.exe -d Ubuntu-24.04 -- bash -lc "cd /home/cris/Innova && npm install"
-```
+Si el proyecto está en una **ruta de red** o en el filesystem de una distribución
+de **WSL** accedido por UNC (por ejemplo `\\wsl.localhost\...`), ejecuta siempre
+`npm install` y los demás scripts de npm **desde el entorno Linux** (WSL, Git
+Bash, etc.). El `cmd.exe` de Windows no admite rutas UNC como directorio de
+trabajo, por lo que los scripts `postinstall` fallan con
+`Cannot find module 'C:\Windows\postinstall.js'`.
 
 ---
 
 ## 1. Instalación
 
 ```bash
-# Dentro de WSL (o en Linux/macOS)
-cd /home/cris/Innova
 npm install
 ```
 
@@ -241,8 +235,6 @@ errores de autorización o datos.
 ## 6. Ejecutar en local
 
 ```bash
-# Dentro de WSL
-cd /home/cris/Innova
 npm run dev
 ```
 

@@ -23,7 +23,7 @@ git push              # ya no vuelve a pedir credenciales
 
 1. https://github.com/settings/tokens → *Generate new token (classic)* → scope `repo`.
 2. Cuando Git pida credenciales:
-   - **Usuario**: `S1xRC`
+   - **Usuario**: tu nombre de usuario de GitHub
    - **Contraseña**: pega el **token** (no tu contraseña real).
 3. Para no repetirlo:
    ```bash
@@ -33,23 +33,22 @@ git push              # ya no vuelve a pedir credenciales
 ### Opción C · Clave SSH
 
 ```bash
-gh ssh-key add ~/.ssh/id_ed25519.pub --title "WSL Innova"
+ssh-keygen -t ed25519 -C "tu-correo@ejemplo.cl"   # solo si aún no tienes una clave
+gh ssh-key add ~/.ssh/id_ed25519.pub --title "Equipo de desarrollo"
 # (o manualmente en https://github.com/settings/keys)
-git remote set-url origin git@github.com:S1xRC/innova-arco.git
-ssh -T git@github.com   # debe responder: "Hi S1xRC! You've successfully authenticated..."
+git remote set-url origin git@github.com:<tu-usuario>/<tu-repo>.git
+ssh -T git@github.com   # debe responder: "Hi <tu-usuario>! You've successfully authenticated..."
 ```
 
-> **Estado actual de este equipo:** `gh` está autenticado como `S1xRC` con
-> protocolo SSH, pero `ssh -T git@github.com` responde
-> `Permission denied (publickey)` → **la clave SSH local aún no está registrada
-> en GitHub**. Ejecuta la Opción A (más rápida) o la Opción C para arreglarlo.
+> Si tu clave SSH tiene **passphrase**, Git la pedirá en cada operación a menos
+> que tengas un agente activo (`eval "$(ssh-agent -s)"` y luego
+> `ssh-add ~/.ssh/id_ed25519`). Si prefieres evitarlo, usa la Opción A.
 
 ---
 
 ## 1. Preparación local (una sola vez)
 
 ```bash
-cd /home/cris/Innova
 git status                 # confirmar que NO aparece .env.local
 npm install
 npm run typecheck && npm run lint && npm run build
