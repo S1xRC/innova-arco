@@ -42,3 +42,7 @@ next-env.d.ts
 # supabase
 /supabase/.branches
 /supabase/.temp
+
+# datos locales (contienen correos reales; NO versionar)
+/supabase/seed.sql
+/supabase/reset.sql
