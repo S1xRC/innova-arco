@@ -36,19 +36,31 @@ export type CreateVideoMetadataInput = z.infer<
   typeof createVideoMetadataSchema
 >;
 
+/**
+ * Identificador.
+ *
+ * `z.guid()` acepta cualquier identificador hexadecimal con forma 8-4-4-4-12,
+ * mientras que `z.uuid()` exige los nibbles de versión y variante del estándar
+ * RFC 9562/4122. El seed de demo usa ids legibles de relleno
+ * (p. ej. `11111111-1111-1111-1111-111111111111`) que son GUID válidos pero NO
+ * UUID RFC (su variante es `1` en lugar de `8/9/a/b`), por lo que aquí se usa la
+ * comprobación laxa. Los ids reales generados por `gen_random_uuid()` pasan ambas.
+ */
+const idSchema = (message: string) => z.guid(message);
+
 /** Driver onboarding: pick the mining company they work for. */
 export const selectMiningCompanySchema = z.object({
-  companyId: z.uuid("Debes seleccionar una empresa minera"),
+  companyId: idSchema("Debes seleccionar una empresa minera"),
 });
 
 /** Driver requests the deletion of one of their video records. */
 export const requestDeletionSchema = z.object({
-  videoId: z.uuid("Registro de video inválido"),
+  videoId: idSchema("Registro de video inválido"),
 });
 
 /** Provider resolves a pending claim. */
 export const resolveDeletionSchema = z.object({
-  requestId: z.uuid("Solicitud de borrado inválida"),
+  requestId: idSchema("Solicitud de borrado inválida"),
 });
 
 /**
