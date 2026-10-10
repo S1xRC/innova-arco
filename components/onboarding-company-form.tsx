@@ -1,7 +1,7 @@
 "use client";
 
 import { Building2 } from "lucide-react";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 import { selectMiningCompanyAction } from "@/actions/onboarding";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -31,13 +31,18 @@ export function OnboardingCompanyForm({
     initialActionState,
   );
 
+  // The Radix Select is controlled here and submitted through an explicit
+  // hidden input: a plain <input name="..."> is always picked up by the
+  // Server Action's FormData, regardless of Radix internals.
+  const [companyId, setCompanyId] = useState<string>("");
+
   const fieldError = state.fieldErrors?.companyId;
 
   return (
     <form action={formAction} className="space-y-6">
       <div className="space-y-2">
         <Label htmlFor="companyId">Empresa minera</Label>
-        <Select name="companyId">
+        <Select value={companyId} onValueChange={setCompanyId}>
           <SelectTrigger
             id="companyId"
             className="w-full"
@@ -53,6 +58,7 @@ export function OnboardingCompanyForm({
             ))}
           </SelectContent>
         </Select>
+        <input type="hidden" name="companyId" value={companyId} />
         {fieldError ? (
           <p className="text-destructive text-xs">{fieldError}</p>
         ) : (
@@ -68,10 +74,15 @@ export function OnboardingCompanyForm({
         </Alert>
       ) : null}
 
-      <Button type="submit" className="w-full" disabled={pending}>
+      <Button
+        type="submit"
+        className="w-full"
+        disabled={pending || companyId.length === 0}
+      >
         <Building2 className="size-4" />
         {pending ? "Guardando…" : "Confirmar empresa"}
       </Button>
     </form>
   );
 }
+
