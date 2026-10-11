@@ -14,10 +14,6 @@ import { formatMegabytes } from "@/lib/constants";
 import { formatDateTime } from "@/lib/format";
 import type { Json, MiningVideoRow } from "@/types";
 
-function capitalize(value: string): string {
-  return value.length > 0 ? value.charAt(0).toUpperCase() + value.slice(1) : value;
-}
-
 /** Reads any JSON value as plain, human readable text. */
 function humanizeValue(value: Json | undefined): string {
   if (value === null || value === undefined) {
@@ -46,8 +42,11 @@ function humanizeValue(value: Json | undefined): string {
 
 /**
  * Renders the "extra info" as readable text instead of raw JSON:
- *   { "nota": "Ruta Norte, Alerta de cansancio" }  ->  "Nota: Ruta Norte, ..."
+ *   { "nota": "Ruta Norte, Alerta de cansancio" }  ->  "Ruta Norte, Alerta de cansancio"
  *   { "ruta": "norte", "alerta": true }            ->  "ruta: norte · alerta: true"
+ *
+ * When there is a single field it is shown **without its key**, because the
+ * column itself is already labelled "Info extra".
  */
 function extraInfoText(extraInfo: MiningVideoRow["extraInfo"]): string {
   if (extraInfo === null || extraInfo === undefined) {
@@ -56,11 +55,10 @@ function extraInfoText(extraInfo: MiningVideoRow["extraInfo"]): string {
 
   if (typeof extraInfo === "object" && !Array.isArray(extraInfo)) {
     const entries = Object.entries(extraInfo);
-    const first = entries[0];
+    const only = entries[0];
 
-    // Plain text typed in the form is stored as a single-key object.
-    if (entries.length === 1 && first && typeof first[1] === "string") {
-      return `${capitalize(first[0])}: ${first[1]}`;
+    if (entries.length === 1 && only) {
+      return humanizeValue(only[1]);
     }
   }
 
