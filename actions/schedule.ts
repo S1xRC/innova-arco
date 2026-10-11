@@ -334,7 +334,13 @@ export async function deleteShiftTemplateAction(
   };
 }
 
-/** Generates the dated occurrences for the rolling window. */
+/**
+ * Prunes useless old occurrences and generates the rolling window.
+ *
+ * The window is Monday of the current week → +14 days (DB defaults); free
+ * occurrences older than 7 days are removed. Occurrences holding a recording are
+ * never touched.
+ */
 export async function generateOccurrencesAction(
   _previousState: ActionState,
   _formData: FormData,
@@ -345,6 +351,8 @@ export async function generateOccurrencesAction(
   const profile = await requireCompany("MINING");
 
   const supabase = await createClient();
+
+  const { data: pruned } = await supabase.rpc("prune_my_shift_occurrences", {});
 
   const { data, error } = await supabase.rpc("generate_shift_occurrences", {
     p_mining_id: profile.companyId,
@@ -358,12 +366,20 @@ export async function generateOccurrencesAction(
   revalidateSchedule();
 
   const created = typeof data === "number" ? data : 0;
+  const removed = typeof pruned === "number" ? pruned : 0;
+
+  const parts: string[] = [];
+
+  if (created > 0) {
+    parts.push(`Se generaron ${created} turno(s).`);
+  }
+
+  if (removed > 0) {
+    parts.push(`Se liberaron ${removed} turno(s) antiguo(s) sin grabación.`);
+  }
 
   return {
     status: "success",
-    message:
-      created > 0
-        ? `Se generaron ${created} turno(s).`
-        : "No había turnos nuevos por generar.",
+    message: parts.length > 0 ? parts.join(" ") : "No había cambios por aplicar.",
   };
 }

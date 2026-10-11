@@ -79,12 +79,13 @@ export default async function MiningVideosPage() {
     : { data: [] };
 
   // Shifts of this company that still have no recording (manual assignment).
-  // Only a rolling window, so the picker does not grow without bound.
+  // Only a rolling window, matching what can exist: free occurrences older than
+  // 7 days are pruned and the generator reaches 14 days ahead.
   const windowFrom = new Date(
-    now.getTime() - 14 * 24 * 60 * 60 * 1000,
+    now.getTime() - 7 * 24 * 60 * 60 * 1000,
   ).toISOString();
   const windowTo = new Date(
-    now.getTime() + 28 * 24 * 60 * 60 * 1000,
+    now.getTime() + 14 * 24 * 60 * 60 * 1000,
   ).toISOString();
 
   const { data: availableShifts } = await supabase

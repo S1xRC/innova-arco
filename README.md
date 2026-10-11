@@ -111,6 +111,7 @@ Cada archivo es idempotente, así que puedes volver a ejecutarlos sin romper nad
 | `0012_explicit_shift_assignment.sql` | Asignación **manual** de la grabación al turno: elimina el *matching* automático por patente + hora y añade `UNIQUE(shift_id)`. |
 | `0013_weekly_schedule.sql` | **Horario semanal**: tabla `shift_templates`, `shifts.template_id`, `generate_shift_occurrences()`, cron diario y *backfill* desde los turnos existentes. |
 | `0014_data_policies.sql` | **Declaración de uso y tratamiento de datos**: tabla `company_data_policies`, helpers `can_manage_company()` / `can_view_data_policy()` y endurecimiento de `companies_update`. |
+| `0015_shift_window.sql` | **Ventana de turnos**: se generan desde el **lunes de la semana actual** hasta +14 días y se **purgan** los turnos libres con más de 7 días (`maintain_shift_occurrences()`, cron). |
 
 **Opción A — SQL Editor (sin instalar nada)**
 
@@ -474,8 +475,17 @@ con fecha a partir de él.
 
 - **`/mining/schedule`** — tablero semanal (filas = conductores, columnas =
   Lunes…Domingo). Clic en un turno para editarlo; «Agregar» crea uno nuevo.
-  Botón **«Generar turnos»** para poblar la ventana móvil (−7 / +28 días); un
-  cron diario la extiende.
+  Botón **«Generar turnos»** y cron diario.
+- **Ventana de generación**: turnos **desde el lunes de la semana actual hasta
+  +14 días** (no genera la semana anterior completa; solo lo necesario para
+  asignar grabaciones subidas con retraso).
+- **Purga automática**: los turnos **libres** (sin grabación y sin marca de
+  borrado) con más de **7 días** se eliminan en el cron diario y al pulsar
+  «Generar turnos». Los turnos **con grabación nunca se tocan**.
+- **`/mining/videos`** — la asignación se hace en **3 pasos**: **conductor**
+  (buscador por nombre o correo) → **día** (chips con los días que tienen turnos
+  libres de ese conductor) → **turno** (solo los libres de ese conductor y ese
+  día, con autocompletado de patente/fecha/hora).
 - **`/mining/shifts`** — los turnos **con fecha** ya generados, con el estado de
   la grabación asignada.
 
@@ -558,8 +568,9 @@ Con la app desplegada y tres cuentas de Google (una por rol):
       + hora) y pulso **«Generar turnos»**.
 - [ ] Los turnos aparecen con fecha en `/mining/shifts` y en el selector de
       `/mining/videos`.
-- [ ] Subo una grabación eligiendo un **turno libre**: el turno pasa a
-      *Grabación asignada*.
+- [ ] Subo una grabación: primero busco y elijo al **conductor**, luego el
+      **día**, y el selector muestra solo sus turnos libres de ese día; el turno
+      pasa a *Grabación asignada*.
 - [ ] Al cambiar el **conductor** del horario, el turno con grabación **no**
       cambia (se conserva) y solo se regeneran los futuros.
 - [ ] En `/mining/settings` pongo **Instantáneo (demo)** y el borrado se ejecuta al

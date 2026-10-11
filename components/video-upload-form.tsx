@@ -16,7 +16,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/lib/supabase/client";
 import { formatMegabytes } from "@/lib/constants";
-import { toDateInputValue, toTimeInputValue } from "@/lib/format";
+import {
+  formatShortDate,
+  formatTime,
+  toDateInputValue,
+  toTimeInputValue,
+} from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { initialActionState } from "@/types/actions";
 import type { ScheduleDriverOption } from "@/types";
@@ -70,6 +75,7 @@ export function VideoUploadForm({
   const [uploading, setUploading] = useState(false);
   const [driverSearch, setDriverSearch] = useState("");
   const [driverUserId, setDriverUserId] = useState("");
+  const [selectedDay, setSelectedDay] = useState("");
 
   const query = driverSearch.trim().toLowerCase();
   // Keep the selected driver visible even when the search no longer matches.
@@ -84,6 +90,27 @@ export function VideoUploadForm({
   const driverShifts = shifts.filter(
     (shift) => shift.driverUserId === driverUserId,
   );
+
+  /** Day (yyyy-MM-dd) in the application time zone. */
+  function dayKey(startsAt: string): string {
+    return toDateInputValue(new Date(startsAt));
+  }
+
+  const days = [
+    ...new Set(driverShifts.map((shift) => dayKey(shift.startsAt))),
+  ].sort();
+
+  // Derived, so no state has to be reset from an effect: when a driver is
+  // picked its first day with free shifts is shown automatically.
+  const activeDay = days.includes(selectedDay) ? selectedDay : days[0] ?? "";
+  const dayShifts = driverShifts.filter(
+    (shift) => dayKey(shift.startsAt) === activeDay,
+  );
+
+  function dayLabel(day: string): string {
+    const shift = driverShifts.find((item) => dayKey(item.startsAt) === day);
+    return shift ? formatShortDate(shift.startsAt) : day;
+  }
 
   /** Clears the metadata prefilled by a previously selected shift. */
   function clearShiftFields() {
@@ -118,6 +145,12 @@ export function VideoUploadForm({
 
   function handleDriverSelect(userId: string) {
     setDriverUserId((current) => (current === userId ? "" : userId));
+    setSelectedDay("");
+    clearShiftFields();
+  }
+
+  function handleDaySelect(day: string) {
+    setSelectedDay(day);
     clearShiftFields();
   }
 
@@ -310,10 +343,39 @@ export function VideoUploadForm({
         </p>
       </div>
 
+      {driverUserId ? (
+        <div className="space-y-2">
+          <Label>Día a revisar</Label>
+          {days.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {days.map((day) => (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => handleDaySelect(day)}
+                  className={cn(
+                    "rounded-md border px-2 py-1 text-xs transition-colors",
+                    day === activeDay
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-accent",
+                  )}
+                >
+                  {dayLabel(day)}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-muted-foreground text-xs">
+              Ese conductor no tiene turnos libres.
+            </p>
+          )}
+        </div>
+      ) : null}
+
       <div className="space-y-2">
         <Label htmlFor="shiftId">Turno a asignar</Label>
         <select
-          key={driverUserId}
+          key={`${driverUserId}-${activeDay}`}
           id="shiftId"
           name="shiftId"
           defaultValue=""
@@ -323,9 +385,9 @@ export function VideoUploadForm({
           {driverUserId ? (
             <>
               <option value="">Sin asignar (solo metadatos)</option>
-              {driverShifts.map((shift) => (
+              {dayShifts.map((shift) => (
                 <option key={shift.id} value={shift.id}>
-                  {shift.label}
+                  {formatTime(shift.startsAt)} · {shift.licensePlate}
                 </option>
               ))}
             </>
@@ -334,7 +396,7 @@ export function VideoUploadForm({
           )}
         </select>
         <p className="text-muted-foreground text-xs">
-          Solo se listan los turnos libres del conductor elegido.
+          Solo se listan los turnos libres del conductor y del día elegidos.
         </p>
         <FieldError message={errors.shiftId} />
       </div>

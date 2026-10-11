@@ -448,6 +448,10 @@ export interface Database {
         };
         Returns: number;
       };
+      prune_my_shift_occurrences: {
+        Args: { p_older_than?: string | null };
+        Returns: number;
+      };
     };
     Enums: {
       company_type: CompanyType;

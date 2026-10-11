@@ -218,4 +218,16 @@ export function addDays(value: string | Date, days: number): Date {
   return new Date(toDate(value).getTime() + days * 24 * 60 * 60 * 1000);
 }
 
+const shortDateFormatter = new Intl.DateTimeFormat("es-CL", {
+  weekday: "short",
+  day: "2-digit",
+  month: "2-digit",
+  timeZone: APP_TIME_ZONE,
+});
+
+/** Short weekday + date, e.g. "lun 16/03" — used by the day picker. */
+export function formatShortDate(value: string | Date): string {
+  return shortDateFormatter.format(toDate(value));
+}
+
 
