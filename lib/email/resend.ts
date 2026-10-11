@@ -21,7 +21,7 @@ export function isEmailEnabled(): boolean {
 export function getFromAddress(): string {
   return (
     process.env.RESEND_FROM_EMAIL?.trim() ||
-    "Innova ARCO <onboarding@resend.dev>"
+    "GeoFace <onboarding@resend.dev>"
   );
 }
 

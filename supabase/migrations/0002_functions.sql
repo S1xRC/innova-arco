@@ -1,5 +1,5 @@
 -- =============================================================================
--- Innova ARCO · 0002 · Helper functions
+-- GeoFace · 0002 · Helper functions
 --
 -- All helpers are SECURITY DEFINER and owned by the migration role (postgres),
 -- so they read public.users bypassing RLS. This is what prevents the classic

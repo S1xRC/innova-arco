@@ -1,5 +1,5 @@
 -- =============================================================================
--- Innova ARCO · 0003 · Row Level Security
+-- GeoFace · 0003 · Row Level Security
 --
 -- Security model:
 --   DRIVER   -> only their own video records (matched by email) + own requests.

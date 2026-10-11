@@ -1,4 +1,4 @@
-# Innova ARCO
+# GeoFace
 
 Plataforma SaaS para gestionar los **derechos ARCO** (Acceso, Rectificación,
 Cancelación y Oposición) de los conductores de camiones mineros cuyos datos
@@ -71,7 +71,7 @@ cp .env.example .env.local
 | `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Clave `service_role`. **Solo servidor.** Necesaria para el almacenamiento (subida/borrado en Storage) y el cron de borrado. |
 | `NEXT_PUBLIC_SITE_URL` | ✅ | URL base pública (`http://localhost:3000` en local). Se usa para los enlaces de los correos y el `redirectTo` de OAuth. |
 | `RESEND_API_KEY` | ➖ | **Opcional.** API key de Resend. Si falta, la app funciona igual: no se envían correos y las invitaciones/reclamos se gestionan dentro de la app. |
-| `RESEND_FROM_EMAIL` | ➖ | **Opcional.** Remitente. Requiere dominio verificado en Resend (no necesitas dominio propio). Para pruebas: `"Innova ARCO <onboarding@resend.dev>"`. |
+| `RESEND_FROM_EMAIL` | ➖ | **Opcional.** Remitente. Requiere dominio verificado en Resend (no necesitas dominio propio). Para pruebas: `"GeoFace <onboarding@resend.dev>"`. |
 | `STORAGE_DRIVER` | ➖ | Driver de almacenamiento de video. Por defecto `supabase`. |
 | `STORAGE_BUCKET` | ➖ | Bucket privado de Supabase Storage. Por defecto `recordings`. |
 | `CRON_SECRET` | ➖ | Secreto que protege `GET /api/cron/process-deletions` (lo envía Vercel Cron como `Authorization: Bearer …`). |
@@ -251,7 +251,7 @@ Si quieres activar los correos:
 
 1. Crea una API key en [resend.com/api-keys](https://resend.com/api-keys) y
    guárdala en `RESEND_API_KEY`.
-2. Usa `RESEND_FROM_EMAIL="Innova ARCO <onboarding@resend.dev>"` para pruebas
+2. Usa `RESEND_FROM_EMAIL="GeoFace <onboarding@resend.dev>"` para pruebas
    (**no requiere dominio propio**; con ese remitente Resend solo envía a tu
    propio correo), o verifica un dominio en **Domains** para producción.
 

@@ -1,5 +1,5 @@
 -- =============================================================================
--- Innova ARCO · 0005 · Schema evolution (multi-tenant)
+-- GeoFace · 0005 · Schema evolution (multi-tenant)
 --
 -- New model:
 --   * memberships       – N:M user <-> company (driver <-> mining, staff, ...).

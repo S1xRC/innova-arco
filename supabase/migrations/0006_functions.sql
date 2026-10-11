@@ -1,5 +1,5 @@
 -- =============================================================================
--- Innova ARCO · 0006 · Helper functions (multi-tenant)
+-- GeoFace · 0006 · Helper functions (multi-tenant)
 --
 -- Every helper is SECURITY DEFINER and owned by the migration role (postgres),
 -- so it reads `public.users` / `public.memberships` bypassing RLS. This is what

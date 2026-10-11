@@ -1,5 +1,5 @@
 -- =============================================================================
--- Innova ARCO · 0014 · Data processing declarations
+-- GeoFace · 0014 · Data processing declarations
 --
 -- Each company (mining or provider) publishes a "declaración de uso y
 -- tratamiento de datos" that its drivers can read.

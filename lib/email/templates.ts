@@ -74,7 +74,7 @@ export function renderEmail(input: EmailLayoutInput): EmailContent {
         </table>`
       : "";
 
-  const footer = input.footer ?? "Correo automático generado por Innova ARCO.";
+  const footer = input.footer ?? "Correo automático generado por GeoFace.";
 
   const html = `<!DOCTYPE html>
 <html lang="es">
@@ -90,7 +90,7 @@ export function renderEmail(input: EmailLayoutInput): EmailContent {
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background-color:#ffffff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
             <tr>
               <td style="background-color:#0f172a;padding:24px 32px;">
-                <p style="margin:0;font-size:16px;font-weight:700;color:#ffffff;letter-spacing:0.02em;">Innova ARCO</p>
+                <p style="margin:0;font-size:16px;font-weight:700;color:#ffffff;letter-spacing:0.02em;">GeoFace</p>
                 <p style="margin:4px 0 0;font-size:12px;color:#94a3b8;">Gestión de derechos de datos</p>
               </td>
             </tr>
@@ -128,7 +128,7 @@ export function renderEmail(input: EmailLayoutInput): EmailContent {
     ...rows.map((row) => `${row.label}: ${row.value}`),
     input.ctaUrl ? `\n${input.ctaLabel ?? "Abrir"}: ${input.ctaUrl}` : "",
     "",
-    "— Innova ARCO",
+    "— GeoFace",
   ]
     .filter((line) => line !== "")
     .join("\n");
@@ -144,7 +144,7 @@ export function buildInvitationEmail(input: {
   invitedEmail: string;
 }): EmailContent {
   return renderEmail({
-    subject: `Invitación de ${input.companyName} — Innova ARCO`,
+    subject: `Invitación de ${input.companyName} — GeoFace`,
     title: "Tienes una invitación",
     intro: `${input.companyName} te invitó a la plataforma con el rol de ${input.roleLabel}. Ingresa con tu cuenta de Google usando el correo invitado para aceptarla.`,
     rows: [

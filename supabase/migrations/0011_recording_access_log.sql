@@ -1,5 +1,5 @@
 -- =============================================================================
--- Innova ARCO · 0011 · Recording access log (ARCO "derecho de acceso")
+-- GeoFace · 0011 · Recording access log (ARCO "derecho de acceso")
 --
 -- Immutable audit trail of who opened each recording. Written server-side by
 -- `app/api/recordings/[id]` every time a signed URL is minted (deduplicated so

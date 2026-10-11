@@ -1,5 +1,5 @@
 -- =============================================================================
--- Innova ARCO · 0010 · Storage bucket limits
+-- GeoFace · 0010 · Storage bucket limits
 --
 -- Makes the `recordings` bucket size limit explicit and aligned with the app
 -- (`DEFAULT_MAX_UPLOAD_MB = 50`, overridable with `STORAGE_MAX_UPLOAD_MB`).

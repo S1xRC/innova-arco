@@ -63,7 +63,7 @@ export const DELETION_POLICY_OPTIONS: Array<{ value: number; label: string }> = 
 
 export const DEFAULT_DELETION_GRACE_DAYS = 30;
 
-export const APP_NAME = "Innova ARCO";
+export const APP_NAME = "GeoFace";
 export const APP_DESCRIPTION =
   "Plataforma para gestionar los derechos ARCO de conductores en empresas mineras.";
 

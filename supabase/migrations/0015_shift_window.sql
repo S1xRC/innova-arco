@@ -1,5 +1,5 @@
 -- =============================================================================
--- Innova ARCO · 0015 · Shift window + free-occurrence pruning
+-- GeoFace · 0015 · Shift window + free-occurrence pruning
 --
 -- 1. `generate_shift_occurrences()` now generates from MONDAY of the current
 --    week (America/Santiago) up to +14 days, instead of the previous -7/+28.

@@ -1,4 +1,4 @@
-# Guía de despliegue — Innova ARCO
+# Guía de despliegue — GeoFace
 
 Checklist operativo para llevar el MVP a producción:
 **GitHub → Vercel** (app) **+ Supabase** (Postgres/Auth) **+ Resend** (correos).
@@ -106,7 +106,7 @@ npm run typecheck && npm run lint && npm run build
 | `STORAGE_BUCKET` | `recordings` |
 | `CRON_SECRET` | string largo aleatorio |
 | `RESEND_API_KEY` | *(opcional)* `re_...` |
-| `RESEND_FROM_EMAIL` | *(opcional)* `Innova ARCO <onboarding@resend.dev>` |
+| `RESEND_FROM_EMAIL` | *(opcional)* `GeoFace <onboarding@resend.dev>` |
 
 - [ ] **Deploy**
 

@@ -1,5 +1,5 @@
 -- =============================================================================
--- Innova ARCO · 0013 · Weekly schedule (shift templates)
+-- GeoFace · 0013 · Weekly schedule (shift templates)
 --
 -- Two levels:
 --   * `shift_templates` — the weekly schedule the mining company edits

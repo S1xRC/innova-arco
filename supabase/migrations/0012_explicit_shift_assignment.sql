@@ -1,5 +1,5 @@
 -- =============================================================================
--- Innova ARCO · 0012 · Explicit shift assignment
+-- GeoFace · 0012 · Explicit shift assignment
 --
 -- The recording ↔ shift assignment is now 100% manual: the mining company picks
 -- an existing, still-free shift in the upload form. The automatic matching by

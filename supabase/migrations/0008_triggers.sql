@@ -1,5 +1,5 @@
 -- =============================================================================
--- Innova ARCO · 0008 · Triggers (multi-tenant)
+-- GeoFace · 0008 · Triggers (multi-tenant)
 -- =============================================================================
 
 -- 1. Provision a `public.users` row the first time someone signs in -----------

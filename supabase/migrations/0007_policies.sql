@@ -1,5 +1,5 @@
 -- =============================================================================
--- Innova ARCO · 0007 · Row Level Security (multi-tenant)
+-- GeoFace · 0007 · Row Level Security (multi-tenant)
 --
 -- Security model:
 --   DRIVER   -> recordings assigned to them through a shift, own requests.

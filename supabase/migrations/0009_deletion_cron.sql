@@ -1,5 +1,5 @@
 -- =============================================================================
--- Innova ARCO · 0009 · Storage bucket + deletion cron
+-- GeoFace · 0009 · Storage bucket + deletion cron
 --
 -- 1. Creates the private `recordings` bucket used for the video files. Every
 --    read/write goes through the server (service_role), so no storage RLS
