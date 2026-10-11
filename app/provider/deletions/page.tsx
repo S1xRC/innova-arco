@@ -31,7 +31,7 @@ export default async function ProviderDeletionsPage() {
   const { data: videos } = videoIds.length
     ? await supabase
         .from("video_metadata")
-        .select("id, license_plate, recorded_at, mining_id")
+        .select("id, external_id, license_plate, recorded_at, mining_id")
         .in("id", videoIds)
     : { data: [] };
 
@@ -74,6 +74,7 @@ export default async function ProviderDeletionsPage() {
           scheduledDeletionAt: request.scheduled_deletion_at,
           resolvedAt: request.resolved_at,
           autoDeletedAt: request.auto_deleted_at,
+          externalId: video.external_id,
           licensePlate: video.license_plate,
           recordedAt: video.recorded_at,
           miningName: video.mining_id

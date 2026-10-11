@@ -100,6 +100,7 @@ export interface ProviderDeletionTicket {
   scheduledDeletionAt: string | null;
   resolvedAt: string | null;
   autoDeletedAt: string | null;
+  externalId: string | null;
   licensePlate: string;
   recordedAt: string;
   miningName: string;

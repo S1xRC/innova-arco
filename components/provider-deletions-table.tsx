@@ -23,6 +23,7 @@ export function ProviderDeletionsTable({
         <TableRow>
           <TableHead>Solicitada</TableHead>
           <TableHead>Minera</TableHead>
+          <TableHead>Identificador</TableHead>
           <TableHead>Patente</TableHead>
           <TableHead>Grabación</TableHead>
           <TableHead>Borrado en plataforma</TableHead>
@@ -36,6 +37,9 @@ export function ProviderDeletionsTable({
             <TableCell>{formatDateTime(ticket.createdAt)}</TableCell>
             <TableCell className="text-muted-foreground">
               {ticket.miningName}
+            </TableCell>
+            <TableCell className="font-mono text-xs">
+              {ticket.externalId ?? "—"}
             </TableCell>
             <TableCell className="font-medium">{ticket.licensePlate}</TableCell>
             <TableCell>{formatDateTime(ticket.recordedAt)}</TableCell>

@@ -427,9 +427,10 @@ límite de tamaño de Vercel). La `storage_path` se guarda en
 1. El conductor pulsa **Solicitar borrado** sobre una grabación asignada a su
    turno → se crea `deletion_requests` (PENDING) y el trigger fija
    `scheduled_deletion_at = now() + companies.deletion_grace_days`.
-2. La **proveedora** ve una fila en `/provider/deletions` para eliminar la
-   grabación de sus propios sistemas y puede **declarar** el borrado
-   (`provider_declared_at`).
+2. La **proveedora** ve una fila en `/provider/deletions` con el
+   **identificador de cámara/video** (`external_id`), la patente y la fecha/hora
+   de la grabación —los datos con los que ubica el registro en sus propios
+   sistemas— y puede **declarar** el borrado (`provider_declared_at`).
 3. Al cumplirse el plazo, el job (`pg_cron` y/o `/api/cron/process-deletions`)
    **elimina el archivo**, purga `extra_info` y el correo del conductor, y marca
    `shifts.video_deleted_at` («se eliminó la grabación» en el turno de esa fecha).
@@ -585,7 +586,8 @@ Con la app desplegada y tres cuentas de Google (una por rol):
 - [ ] Tras el borrado, veo *Eliminado* y si la proveedora declaró el borrado.
 
 **Proveedora**
-- [ ] En `/provider/deletions` veo el ticket y puedo **Declarar borrado**.
+- [ ] En `/provider/deletions` veo el ticket (patente, **identificador de
+      cámara** y fecha/hora) y puedo **Declarar borrado**.
 - [ ] No veo tickets de otras proveedoras.
 - [ ] En `/provider/settings` publico mi declaración de uso y tratamiento.
 
