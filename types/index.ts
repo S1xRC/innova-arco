@@ -51,6 +51,9 @@ export interface DriverRecording {
   recordedAt: string;
   externalId: string | null;
   providerName: string;
+  miningName: string | null;
+  /** Días configurados por la minera entre la solicitud y el borrado. */
+  retentionDays: number | null;
   shiftStartsAt: string | null;
   requestId: string | null;
   requestStatus: DeletionRequest["status"] | null;

@@ -435,6 +435,10 @@ límite de tamaño de Vercel). La `storage_path` se guarda en
    **elimina el archivo**, purga `extra_info` y el correo del conductor, y marca
    `shifts.video_deleted_at` («se eliminó la grabación» en el turno de esa fecha).
 4. El conductor ve el estado y el campo «Proveedora declaró».
+5. En `/driver` cada grabación muestra el **plazo de borrado** configurado por su
+   empresa minera (`companies.deletion_grace_days`): «borrado 30 días después de
+   pedirlo» o «borrado de inmediato al pedirlo». El plazo corre **desde la
+   solicitud**, no desde la fecha de la grabación.
 
 > **Modo demo:** en `/mining/settings` la minera puede fijar `deletion_grace_days = 0`
 > (Instantáneo) para que el borrado ocurra en el momento.
@@ -582,6 +586,8 @@ Con la app desplegada y tres cuentas de Google (una por rol):
 **Conductor**
 - [ ] En `/driver` veo las grabaciones asignadas a mis turnos.
 - [ ] Reproduzco mi grabación con **Ver** y veo el nº de accesos y qué empresa la vio.
+- [ ] Antes de solicitarlo, cada grabación indica el plazo configurado por la
+      minera (p. ej. «30 días después de pedirlo» o «de inmediato»).
 - [ ] Al pulsar **Solicitar borrado** aparece la fecha de borrado y el estado.
 - [ ] Tras el borrado, veo *Eliminado* y si la proveedora declaró el borrado.
 

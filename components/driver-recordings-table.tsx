@@ -13,7 +13,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatDate, formatDateTime, formatRemaining, formatTime } from "@/lib/format";
+import {
+  describeRetentionDays,
+  formatDate,
+  formatDateTime,
+  formatRemaining,
+  formatTime,
+} from "@/lib/format";
 import type { DriverRecording } from "@/types";
 
 export function DriverRecordingsTable({
@@ -74,7 +80,15 @@ export function DriverRecordingsTable({
                     : ""}
                 </Badge>
               ) : (
-                <Badge variant="outline">Disponible</Badge>
+                <div className="flex flex-col gap-1">
+                  <Badge variant="outline">Disponible</Badge>
+                  {record.retentionDays !== null ? (
+                    <span className="text-muted-foreground text-xs">
+                      Borrado {describeRetentionDays(record.retentionDays)}
+                      {record.miningName ? ` · ${record.miningName}` : ""}
+                    </span>
+                  ) : null}
+                </div>
               )}
             </TableCell>
             <TableCell>

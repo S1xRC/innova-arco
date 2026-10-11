@@ -38,7 +38,7 @@ export default async function DriverDashboardPage() {
     ? await supabase
         .from("video_metadata")
         .select(
-          "id, license_plate, recorded_at, external_id, provider_id, deleted_at, storage_path",
+          "id, license_plate, recorded_at, external_id, provider_id, deleted_at, storage_path, mining_id",
         )
         .in("id", videoIds)
         .order("recorded_at", { ascending: false })
@@ -125,6 +125,26 @@ export default async function DriverDashboardPage() {
   const providersById = new Map(
     (providers ?? []).map((provider) => [provider.id, provider]),
   );
+
+  // Retention policy of each mining company (shown per recording).
+  const miningIds = [
+    ...new Set(
+      (videos ?? [])
+        .map((video) => video.mining_id)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  const { data: miningCompanies } = miningIds.length
+    ? await supabase
+        .from("companies")
+        .select("id, name, deletion_grace_days")
+        .in("id", miningIds)
+    : { data: [] };
+
+  const miningById = new Map(
+    (miningCompanies ?? []).map((company) => [company.id, company]),
+  );
+
   const requestsByVideo = new Map(
     (requests ?? []).map((request) => [request.video_id, request]),
   );
@@ -147,6 +167,12 @@ export default async function DriverDashboardPage() {
       providerName: video.provider_id
         ? providersById.get(video.provider_id)?.name ?? "Proveedora"
         : "Sin proveedora",
+      miningName: video.mining_id
+        ? miningById.get(video.mining_id)?.name ?? null
+        : null,
+      retentionDays: video.mining_id
+        ? miningById.get(video.mining_id)?.deletion_grace_days ?? null
+        : null,
       shiftStartsAt: shift?.starts_at ?? null,
       requestId: request?.id ?? null,
       requestStatus: request?.status ?? null,
@@ -223,7 +249,8 @@ export default async function DriverDashboardPage() {
           <CardDescription>
             Al solicitar el borrado, la grabación se elimina automáticamente al
             cumplirse el plazo y se marca el turno. Verás si la proveedora
-            confirmó el borrado en sus sistemas.
+            confirmó el borrado en sus sistemas. El plazo lo define cada empresa
+            minera y aparece indicado en cada grabación.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

@@ -213,6 +213,19 @@ export function formatRemaining(value: string | Date): string {
   return `quedan ${days} días`;
 }
 
+/** Cuándo se borra la grabación una vez que el conductor lo pide. */
+export function describeRetentionDays(days: number): string {
+  if (days <= 0) {
+    return "de inmediato al pedirlo";
+  }
+
+  if (days === 1) {
+    return "1 día después de pedirlo";
+  }
+
+  return `${days} días después de pedirlo`;
+}
+
 /** Adds `days` to a date and returns a new Date. */
 export function addDays(value: string | Date, days: number): Date {
   return new Date(toDate(value).getTime() + days * 24 * 60 * 60 * 1000);
