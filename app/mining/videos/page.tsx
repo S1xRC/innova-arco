@@ -20,6 +20,7 @@ export const metadata = { title: "Grabaciones" };
 export default async function MiningVideosPage() {
   const profile = await requireCompany("MINING");
   const supabase = await createClient();
+  const now = new Date();
 
   const [{ data: videos }, { data: relations }] = await Promise.all([
     supabase
@@ -78,13 +79,24 @@ export default async function MiningVideosPage() {
     : { data: [] };
 
   // Shifts of this company that still have no recording (manual assignment).
+  // Only a rolling window, so the picker does not grow without bound.
+  const windowFrom = new Date(
+    now.getTime() - 14 * 24 * 60 * 60 * 1000,
+  ).toISOString();
+  const windowTo = new Date(
+    now.getTime() + 28 * 24 * 60 * 60 * 1000,
+  ).toISOString();
+
   const { data: availableShifts } = await supabase
     .from("shifts")
     .select("id, license_plate, starts_at, driver_user_id")
     .eq("mining_id", profile.companyId)
     .is("matched_video_id", null)
     .is("video_deleted_at", null)
-    .order("starts_at", { ascending: false });
+    .gte("starts_at", windowFrom)
+    .lte("starts_at", windowTo)
+    .order("starts_at", { ascending: false })
+    .limit(200);
 
   const driverIds = [
     ...new Set([
@@ -141,8 +153,6 @@ export default async function MiningVideosPage() {
       : null,
     extraInfo: video.extra_info,
   }));
-
-  const now = new Date();
 
   return (
     <div className="space-y-6">

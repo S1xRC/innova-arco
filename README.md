@@ -109,6 +109,7 @@ Cada archivo es idempotente, así que puedes volver a ejecutarlos sin romper nad
 | `0010_storage_limits.sql` | Fija el límite de tamaño del bucket `recordings` (50 MB). |
 | `0011_recording_access_log.sql` | Bitácora inmutable de accesos a grabaciones (ARCO «acceso»). |
 | `0012_explicit_shift_assignment.sql` | Asignación **manual** de la grabación al turno: elimina el *matching* automático por patente + hora y añade `UNIQUE(shift_id)`. |
+| `0013_weekly_schedule.sql` | **Horario semanal**: tabla `shift_templates`, `shifts.template_id`, `generate_shift_occurrences()`, cron diario y *backfill* desde los turnos existentes. |
 
 **Opción A — SQL Editor (sin instalar nada)**
 
@@ -146,7 +147,8 @@ on conflict (email) do update set role = excluded.role, company_id = excluded.co
 ```
 companies ──┬──< memberships >─── users        (N:M: conductor ↔ mineras, staff, …)
             ├──< company_relations             (minera invita a la proveedora)
-            ├──< shifts                        (turnos: patente + hora de inicio)
+            ├──< shift_templates               (HORARIO semanal: día + hora + patente)
+            ├──< shifts                        (turnos con fecha generados del horario)
             └──< video_metadata                (sube la minera; archivo en Storage)
                      │   ▲  asignación manual (turno elegido en el formulario)
                      ▼   │
@@ -290,7 +292,7 @@ Abre <http://localhost:3000> e inicia sesión con Google.
 | Sin empresa activa | `/onboarding` (aceptar invitación o registrar empresa) |
 | DRIVER | `/driver` |
 | PROVIDER | `/provider` · `/provider/deletions` · `/provider/relations` |
-| MINING | `/mining` · `/mining/shifts` · `/mining/videos` · `/mining/members` · `/mining/providers` · `/mining/claims` · `/mining/access` · `/mining/settings` |
+| MINING | `/mining` · `/mining/schedule` · `/mining/shifts` · `/mining/videos` · `/mining/members` · `/mining/providers` · `/mining/claims` · `/mining/access` · `/mining/settings` |
 | Cualquiera (con sesión) | `/invitations` (aceptar invitaciones nuevas) · `/admin` (solo platform admin) |
 
 ---
@@ -365,6 +367,7 @@ Todas las tablas tienen RLS activado. Las políticas usan funciones
 | `memberships` | Sus filas / invitaciones a su correo | Filas de su empresa | Filas de su empresa (CRUD) |
 | `company_relations` | — | Donde es `provider_id` | Sus relaciones (CRUD) |
 | `shifts` | Donde `driver_user_id = auth.uid()` | Vía relaciones | CRUD de su empresa |
+| `shift_templates` | Donde `driver_user_id = auth.uid()` | — | CRUD de su empresa |
 | `video_metadata` | Asignados vía `shifts.matched_video_id` | Donde `provider_id = empresa` | CRUD de su empresa |
 | `deletion_requests` | `driver_id = auth.uid()` (+ insert si está asignado) | Lectura + **update** solo de `provider_declared_*` | Lectura + update |
 | `recording_access_log` | Sus accesos + los de sus grabaciones asignadas | — | Los accesos a sus grabaciones (+ admin) |
@@ -461,6 +464,33 @@ en `recording_access_log` (una fila por reproducción, deduplicando los `Range`)
   grabaciones y **qué empresa** lo vio (por privacidad se muestra la empresa y la
   fecha, no el correo del empleado).
 
+## 8.quater Horario semanal y turnos generados
+
+El horario **no** se crea día a día: la empresa define un **horario semanal
+recurrente** (conductor + patente + día + hora) y la app **genera** los turnos
+con fecha a partir de él.
+
+- **`/mining/schedule`** — tablero semanal (filas = conductores, columnas =
+  Lunes…Domingo). Clic en un turno para editarlo; «Agregar» crea uno nuevo.
+  Botón **«Generar turnos»** para poblar la ventana móvil (−7 / +28 días); un
+  cron diario la extiende.
+- **`/mining/shifts`** — los turnos **con fecha** ya generados, con el estado de
+  la grabación asignada.
+
+**Reglas de seguridad al editar el horario** (clave):
+
+- Cambiar conductor / patente / hora / día **nunca** toca los turnos que ya
+  tienen una grabación asignada (o cuya grabación fue borrada): esos turnos se
+  **conservan tal cual**, con su conductor original. Solo se regeneran los turnos
+  **futuros y libres**.
+- **Pausar** un horario detiene la generación sin perder el histórico.
+- **Eliminar** un horario conserva los turnos con grabación (el
+  `deletion_requests.shift_id` y la bitácora de accesos quedan intactos).
+- Un turno con grabación **no se puede eliminar** desde `/mining/shifts`.
+- La migración `0013` hace un *backfill*: crea las plantillas desde los turnos
+  existentes (agrupando conductor + patente + día de la semana + hora) y las
+  enlaza, **sin modificar** ninguno de sus datos.
+
 ---
 
 ## 9. Despliegue en Vercel
@@ -501,9 +531,14 @@ Con la app desplegada y tres cuentas de Google (una por rol):
 - [ ] Invito un conductor en `/mining/members`; al entrar con su correo acepta la
       invitación en `/onboarding` y aparece como *Activo*.
 - [ ] Creo un turno en `/mining/shifts` (conductor + patente + hora de inicio).
-- [ ] Subo una grabación en `/mining/videos` eligiendo un **turno libre** en el
-      formulario: el turno pasa a *Grabación asignada* (ya no hay *matching*
-      automático por patente + hora).
+- [ ] Creo el **horario semanal** en `/mining/schedule` (conductor + patente + día
+      + hora) y pulso **«Generar turnos»**.
+- [ ] Los turnos aparecen con fecha en `/mining/shifts` y en el selector de
+      `/mining/videos`.
+- [ ] Subo una grabación eligiendo un **turno libre**: el turno pasa a
+      *Grabación asignada*.
+- [ ] Al cambiar el **conductor** del horario, el turno con grabación **no**
+      cambia (se conserva) y solo se regeneran los futuros.
 - [ ] En `/mining/settings` pongo **Instantáneo (demo)** y el borrado se ejecuta al
       instante; con **30 días** queda programado.
 - [ ] En `/mining/videos` reproduzco una grabación con **Ver** y el acceso aparece
@@ -539,8 +574,8 @@ Con la app desplegada y tres cuentas de Google (una por rol):
 - **Roles:** se asignan por invitación y son libres; un *platform admin* puede
   asignar cualquiera desde `/admin`.
 - **Ingesta de video:** manual por ahora; el formulario simula la futura API de
-  las cámaras. El turno se **selecciona manualmente** entre los que no tienen
-  grabación asignada (no hay *matching* automático por patente + hora).
+  las cámaras. El turno se **selecciona manualmente** entre los turnos **libres
+  generados** desde el horario semanal (no hay *matching* automático).
 - **Correo opcional:** sin `RESEND_API_KEY` no se envían correos; todo el flujo
   funciona dentro de la app.
 - **Sin dominio:** Google OAuth y Supabase funcionan con `localhost` y el dominio

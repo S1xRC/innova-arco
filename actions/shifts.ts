@@ -2,111 +2,24 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireProfile } from "@/lib/auth";
-import { combineDateTime } from "@/lib/format";
+import { requireCompany } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { createShiftSchema, shiftIdSchema, zodFieldErrors } from "@/lib/validation";
+import { shiftIdSchema } from "@/lib/validation";
 import type { ActionState } from "@/types/actions";
 
-const UNIQUE_VIOLATION = "23505";
-
-/** Mining company schedules a shift for one of its drivers. */
-export async function createShiftAction(
-  _previousState: ActionState,
-  formData: FormData,
-): Promise<ActionState> {
-  const profile = await requireProfile();
-
-  if (!profile.companyId || profile.companyType !== "MINING") {
-    return {
-      status: "error",
-      message: "Solo una empresa minera puede definir turnos.",
-    };
-  }
-
-  const parsed = createShiftSchema.safeParse({
-    driverUserId: String(formData.get("driverUserId") ?? ""),
-    licensePlate: String(formData.get("licensePlate") ?? ""),
-    shiftDate: String(formData.get("shiftDate") ?? ""),
-    shiftTime: String(formData.get("shiftTime") ?? ""),
-    notes: String(formData.get("notes") ?? ""),
-  });
-
-  if (!parsed.success) {
-    return {
-      status: "error",
-      message: "Revisa los datos del turno.",
-      fieldErrors: zodFieldErrors(parsed.error),
-    };
-  }
-
-  const startsAt = combineDateTime(parsed.data.shiftDate, parsed.data.shiftTime);
-
-  if (!startsAt) {
-    return {
-      status: "error",
-      message: "La fecha u hora del turno no son válidas.",
-    };
-  }
-
-  const supabase = await createClient();
-
-  // The driver must be an active member of this mining company.
-  const { data: membership } = await supabase
-    .from("memberships")
-    .select("user_id")
-    .eq("company_id", profile.companyId)
-    .eq("user_id", parsed.data.driverUserId)
-    .eq("status", "ACTIVE")
-    .maybeSingle();
-
-  if (!membership) {
-    return {
-      status: "error",
-      message: "Ese conductor no pertenece a tu empresa.",
-    };
-  }
-
-  const { error } = await supabase.from("shifts").insert({
-    mining_id: profile.companyId,
-    driver_user_id: parsed.data.driverUserId,
-    license_plate: parsed.data.licensePlate,
-    starts_at: startsAt.toISOString(),
-    notes: parsed.data.notes || null,
-    created_by: profile.id,
-  });
-
-  if (error) {
-    if (error.code === UNIQUE_VIOLATION) {
-      return {
-        status: "error",
-        message: "Ya existe un turno para ese conductor, patente y hora.",
-      };
-    }
-
-    console.error("[ARCO] createShiftAction:", error.message);
-    return { status: "error", message: "No fue posible crear el turno." };
-  }
-
-  revalidatePath("/mining/shifts");
-  revalidatePath("/mining");
-
-  return {
-    status: "success",
-    message: `Turno creado para la patente ${parsed.data.licensePlate}.`,
-  };
-}
-
-/** Mining company removes a shift. */
+/**
+ * Removes a generated shift (occurrence). The weekly schedule itself is managed
+ * in `actions/schedule.ts`.
+ *
+ * A shift that already holds a recording cannot be removed here: that would
+ * break the assignment (and possibly a driver's right of access). Delete the
+ * schedule entry instead, which preserves recorded occurrences.
+ */
 export async function deleteShiftAction(
   _previousState: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const profile = await requireProfile();
-
-  if (!profile.companyId || profile.companyType !== "MINING") {
-    return { status: "error", message: "No autorizado." };
-  }
+  const profile = await requireCompany("MINING");
 
   const parsed = shiftIdSchema.safeParse({
     shiftId: String(formData.get("shiftId") ?? ""),
@@ -118,17 +31,29 @@ export async function deleteShiftAction(
 
   const supabase = await createClient();
 
-  const { error } = await supabase
+  const { data: deleted, error } = await supabase
     .from("shifts")
     .delete()
     .eq("id", parsed.data.shiftId)
-    .eq("mining_id", profile.companyId);
+    .eq("mining_id", profile.companyId)
+    .is("matched_video_id", null)
+    .select("id");
 
   if (error) {
+    console.error("[ARCO] deleteShiftAction:", error.message);
     return { status: "error", message: "No fue posible eliminar el turno." };
   }
 
+  if (!deleted || deleted.length === 0) {
+    return {
+      status: "error",
+      message:
+        "No se puede eliminar un turno con grabación asignada. Ajusta el horario en «Horario».",
+    };
+  }
+
   revalidatePath("/mining/shifts");
+  revalidatePath("/mining/schedule");
   revalidatePath("/mining");
 
   return { status: "success", message: "Turno eliminado." };

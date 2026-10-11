@@ -86,6 +86,33 @@ export const createShiftSchema = z.object({
     .or(z.literal("")),
 });
 
+/** Weekly schedule entry (the editable "horario") of the mining company. */
+export const createShiftTemplateSchema = z.object({
+  driverUserId: idSchema("Debes seleccionar un conductor"),
+  licensePlate: licensePlateSchema,
+  weekday: z.coerce
+    .number()
+    .int("El día debe ser un número")
+    .min(0, "Día de la semana inválido")
+    .max(6, "Día de la semana inválido"),
+  startTime: timeSchema,
+  notes: z
+    .string()
+    .trim()
+    .max(500, "La nota es demasiado larga")
+    .optional()
+    .or(z.literal("")),
+});
+
+/** Mining company edits an existing schedule entry. */
+export const updateShiftTemplateSchema = createShiftTemplateSchema.extend({
+  templateId: idSchema("Horario inválido"),
+});
+
+export const shiftTemplateIdSchema = z.object({
+  templateId: idSchema("Horario inválido"),
+});
+
 /** Mining company invites a driver to its organisation (by email). */
 export const inviteDriverSchema = z.object({
   email: emailSchema,

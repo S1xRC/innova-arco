@@ -6,11 +6,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { ShiftForm, type DriverOption } from "@/components/shift-form";
 import { ShiftsTable } from "@/components/shifts-table";
 import { requireCompany } from "@/lib/auth";
-import { toDateInputValue, toTimeInputValue } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import type { ShiftRow } from "@/types";
 
@@ -20,31 +17,17 @@ export default async function MiningShiftsPage() {
   const profile = await requireCompany("MINING");
   const supabase = await createClient();
 
-  const [{ data: shifts }, { data: memberships }] = await Promise.all([
-    supabase
-      .from("shifts")
-      .select(
-        "id, license_plate, starts_at, notes, driver_user_id, matched_video_id, video_deleted_at",
-      )
-      .eq("mining_id", profile.companyId)
-      .order("starts_at", { ascending: false }),
-    supabase
-      .from("memberships")
-      .select("user_id, invited_email, role, status")
-      .eq("company_id", profile.companyId)
-      .eq("role", "DRIVER")
-      .eq("status", "ACTIVE"),
-  ]);
+  const { data: shifts } = await supabase
+    .from("shifts")
+    .select(
+      "id, license_plate, starts_at, notes, driver_user_id, matched_video_id, video_deleted_at",
+    )
+    .eq("mining_id", profile.companyId)
+    .order("starts_at", { ascending: false })
+    .limit(200);
 
   const driverIds = [
-    ...new Set(
-      [
-        ...(shifts ?? []).map((shift) => shift.driver_user_id),
-        ...(memberships ?? [])
-          .map((membership) => membership.user_id)
-          .filter((id): id is string => Boolean(id)),
-      ].filter(Boolean),
-    ),
+    ...new Set((shifts ?? []).map((shift) => shift.driver_user_id)),
   ];
 
   const { data: driverUsers } = driverIds.length
@@ -57,21 +40,6 @@ export default async function MiningShiftsPage() {
   const usersById = new Map(
     (driverUsers ?? []).map((user) => [user.id, user]),
   );
-
-  const drivers: DriverOption[] = (memberships ?? []).flatMap((membership) => {
-    if (!membership.user_id) {
-      return [];
-    }
-
-    const user = usersById.get(membership.user_id);
-
-    return [
-      {
-        userId: membership.user_id,
-        label: user?.full_name ?? user?.email ?? membership.invited_email,
-      },
-    ];
-  });
 
   const rows: ShiftRow[] = (shifts ?? []).map((shift) => {
     const driver = usersById.get(shift.driver_user_id);
@@ -89,60 +57,46 @@ export default async function MiningShiftsPage() {
     };
   });
 
-  const now = new Date();
+  const withVideo = rows.filter(
+    (row) => row.matchedVideoId || row.videoDeletedAt,
+  ).length;
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Turnos</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Turnos generados
+        </h1>
         <p className="text-muted-foreground text-sm">
-          Define el turno de cada conductor con la patente del camión y la hora de
-          inicio. Cuando subas una grabación que coincida, se asignará a ese
-          turno.
+          Turnos con fecha generados desde el <strong>horario semanal</strong>.
+          Aquí ves a qué conductor quedó asignada cada grabación. Para cambiar el
+          horario, usa «Horario».
         </p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Nuevo turno</CardTitle>
-            <CardDescription>
-              La patente y la hora de inicio deben coincidir con la grabación.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ShiftForm
-              drivers={drivers}
-              defaultDate={toDateInputValue(now)}
-              defaultTime={toTimeInputValue(now)}
-            />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Turnos definidos</CardTitle>
-            <CardDescription>
-              {rows.length > 0
-                ? `${rows.length} turno(s) registrados.`
-                : "Aún no has definido turnos."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Separator />
-            {rows.length > 0 ? (
-              <ShiftsTable shifts={rows} />
-            ) : (
-              <Alert>
-                <AlertTitle>Sin turnos</AlertTitle>
-                <AlertDescription>
-                  Crea el primer turno con el formulario de la izquierda.
-                </AlertDescription>
-              </Alert>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Turnos</CardTitle>
+          <CardDescription>
+            {rows.length > 0
+              ? `${rows.length} turno(s) (máximo 200 más recientes), ${withVideo} con grabación.`
+              : "Aún no hay turnos generados."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {rows.length > 0 ? (
+            <ShiftsTable shifts={rows} />
+          ) : (
+            <Alert>
+              <AlertTitle>Sin turnos</AlertTitle>
+              <AlertDescription>
+                Crea el <strong>horario semanal</strong> y pulsa «Generar turnos»
+                para poblar el calendario.
+              </AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

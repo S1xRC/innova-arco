@@ -4,6 +4,7 @@ import { requireCompany } from "@/lib/auth";
 
 const NAV_ITEMS = [
   { href: "/mining", label: "Resumen" },
+  { href: "/mining/schedule", label: "Horario" },
   { href: "/mining/shifts", label: "Turnos" },
   { href: "/mining/videos", label: "Grabaciones" },
   { href: "/mining/members", label: "Conductores" },

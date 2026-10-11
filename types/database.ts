@@ -176,6 +176,7 @@ export interface Database {
           notes: string | null;
           matched_video_id: string | null;
           video_deleted_at: string | null;
+          template_id: string | null;
           created_by: string | null;
           created_at: string;
         },
@@ -188,6 +189,7 @@ export interface Database {
           notes?: string | null;
           matched_video_id?: string | null;
           video_deleted_at?: string | null;
+          template_id?: string | null;
           created_by?: string | null;
           created_at?: string;
         },
@@ -200,8 +202,50 @@ export interface Database {
           notes?: string | null;
           matched_video_id?: string | null;
           video_deleted_at?: string | null;
+          template_id?: string | null;
           created_by?: string | null;
           created_at?: string;
+        }
+      >;
+      shift_templates: DbTable<
+        {
+          id: string;
+          mining_id: string;
+          driver_user_id: string;
+          license_plate: string;
+          weekday: number;
+          start_time: string;
+          notes: string | null;
+          active: boolean;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        },
+        {
+          id?: string;
+          mining_id: string;
+          driver_user_id: string;
+          license_plate: string;
+          weekday: number;
+          start_time: string;
+          notes?: string | null;
+          active?: boolean;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        },
+        {
+          id?: string;
+          mining_id?: string;
+          driver_user_id?: string;
+          license_plate?: string;
+          weekday?: number;
+          start_time?: string;
+          notes?: string | null;
+          active?: boolean;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
         }
       >;
       video_metadata: DbTable<
@@ -373,6 +417,14 @@ export interface Database {
         Args: Record<string, never>;
         Returns: number;
       };
+      generate_shift_occurrences: {
+        Args: {
+          p_mining_id: string;
+          p_from?: string | null;
+          p_to?: string | null;
+        };
+        Returns: number;
+      };
     };
     Enums: {
       company_type: CompanyType;
@@ -394,6 +446,7 @@ export type UserProfile = Tables<"users">;
 export type Membership = Tables<"memberships">;
 export type CompanyRelation = Tables<"company_relations">;
 export type Shift = Tables<"shifts">;
+export type ShiftTemplate = Tables<"shift_templates">;
 export type VideoMetadata = Tables<"video_metadata">;
 export type DeletionRequest = Tables<"deletion_requests">;
 export type UserInvite = Tables<"user_invites">;

@@ -85,3 +85,17 @@ export function resolveMaxUploadMb(): number {
 export function formatMegabytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+/** Weekday labels; index = `extract(dow)` (0 = domingo … 6 = sábado). */
+export const WEEKDAY_LABELS: Record<number, string> = {
+  0: "Domingo",
+  1: "Lunes",
+  2: "Martes",
+  3: "Miércoles",
+  4: "Jueves",
+  5: "Viernes",
+  6: "Sábado",
+};
+
+/** Monday-first display order used by the weekly board. */
+export const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0];

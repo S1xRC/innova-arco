@@ -46,14 +46,20 @@ export function ShiftsTable({ shifts }: { shifts: ShiftRow[] }) {
               {shift.notes ?? "—"}
             </TableCell>
             <TableCell className="text-right">
-              <ActionButton
-                action={deleteShiftAction}
-                payload={{ shiftId: shift.id }}
-                label="Eliminar"
-                pendingLabel="Eliminando…"
-                icon="trash"
-                variant="ghost"
-              />
+              {shift.matchedVideoId || shift.videoDeletedAt ? (
+                <span className="text-muted-foreground text-xs">
+                  Con grabación
+                </span>
+              ) : (
+                <ActionButton
+                  action={deleteShiftAction}
+                  payload={{ shiftId: shift.id }}
+                  label="Eliminar"
+                  pendingLabel="Eliminando…"
+                  icon="trash"
+                  variant="ghost"
+                />
+              )}
             </TableCell>
           </TableRow>
         ))}

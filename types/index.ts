@@ -12,6 +12,7 @@ export type {
   MembershipStatus,
   RelationStatus,
   Shift,
+  ShiftTemplate,
   Tables,
   UserProfile,
   UserRole,
@@ -120,6 +121,35 @@ export interface MiningVideoRow {
   driverEmail: string | null;
   extraInfo: Json | null;
   storageSize: number | null;
+}
+
+/** A weekly schedule entry (the editable "horario" of the mining company). */
+export interface ScheduleEntry {
+  id: string;
+  driverUserId: string;
+  driverLabel: string;
+  licensePlate: string;
+  /** 0 = domingo … 6 = sábado (matches `extract(dow)`). */
+  weekday: number;
+  /** "HH:MM" */
+  startTime: string;
+  notes: string | null;
+  active: boolean;
+  /** Occurrences generated from this entry that already hold a recording. */
+  assignedCount: number;
+}
+
+/** A driver row of the weekly board, with their schedule entries. */
+export interface ScheduleDriverRow {
+  userId: string;
+  label: string;
+  entries: ScheduleEntry[];
+}
+
+/** Simple option list for the schedule editor. */
+export interface ScheduleDriverOption {
+  userId: string;
+  label: string;
 }
 
 /** One row of the recording access log (ARCO "acceso"). */
