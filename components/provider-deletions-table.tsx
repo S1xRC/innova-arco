@@ -28,7 +28,9 @@ export function ProviderDeletionsTable({
           <TableHead>Grabación</TableHead>
           <TableHead>Borrado en plataforma</TableHead>
           <TableHead>Estado</TableHead>
-          <TableHead className="text-right">Borrado en tus sistemas</TableHead>
+          <TableHead className="w-64 min-w-64 text-right">
+            Declarar borrado
+          </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -55,14 +57,14 @@ export function ProviderDeletionsTable({
                 <Badge variant="success">{STATUS_LABELS.DELETED}</Badge>
               )}
             </TableCell>
-            <TableCell className="text-right">
+            <TableCell className="w-64 min-w-64 text-right">
               {ticket.providerDeclaredAt ? (
                 <div className="flex flex-col items-end gap-1">
                   <Badge variant="success">
                     Declarado {formatDateTime(ticket.providerDeclaredAt)}
                   </Badge>
                   {ticket.providerNote ? (
-                    <span className="text-muted-foreground text-xs">
+                    <span className="text-muted-foreground max-w-full text-xs whitespace-normal break-words">
                       {ticket.providerNote}
                     </span>
                   ) : null}

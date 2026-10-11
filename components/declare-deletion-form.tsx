@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { declareProviderDeletionAction } from "@/actions/deletions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { initialActionState } from "@/types/actions";
 
 /** Provider declares it deleted the recording from its own systems. */
@@ -26,16 +27,25 @@ export function DeclareDeletionForm({ requestId }: { requestId: string }) {
     }
   }, [state]);
 
+  const noteId = `note-${requestId}`;
+
   return (
-    <form action={formAction} className="flex items-center justify-end gap-2">
+    <form action={formAction} className="flex w-full flex-col items-end gap-2">
       <input type="hidden" name="requestId" value={requestId} />
-      <Input
-        name="note"
-        placeholder="Nota (opcional)"
-        className="h-8 max-w-40"
-        autoComplete="off"
-      />
-      <Button type="submit" size="sm" disabled={pending}>
+      <div className="w-full space-y-1">
+        <Label htmlFor={noteId} className="text-muted-foreground text-xs">
+          Nota (opcional)
+        </Label>
+        <Input
+          id={noteId}
+          name="note"
+          placeholder="Ej.: borrada del servidor y del respaldo"
+          className="h-8 w-full"
+          maxLength={500}
+          autoComplete="off"
+        />
+      </div>
+      <Button type="submit" size="sm" className="w-full" disabled={pending}>
         <CheckCheck className="size-4" />
         {pending ? "Guardando…" : "Declarar borrado"}
       </Button>
