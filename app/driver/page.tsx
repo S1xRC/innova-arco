@@ -1,4 +1,5 @@
 import { Camera, FileWarning, ShieldCheck } from "lucide-react";
+import Link from "next/link";
 
 import { DriverRecordingsTable } from "@/components/driver-recordings-table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -173,6 +174,13 @@ export default async function DriverDashboardPage() {
         <p className="text-muted-foreground text-sm">
           Estas son las grabaciones asignadas a tus turnos. Puedes pedir el
           borrado de cualquiera que te identifique.
+        </p>
+        <p className="text-muted-foreground mt-1 text-xs">
+          Consulta la{" "}
+          <Link href="/driver/policies" className="underline">
+            declaración de uso y tratamiento de datos
+          </Link>{" "}
+          de tus empresas.
         </p>
       </div>
 

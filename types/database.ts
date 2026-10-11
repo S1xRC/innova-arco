@@ -394,6 +394,29 @@ export interface Database {
           created_at?: string;
         }
       >;
+      company_data_policies: DbTable<
+        {
+          company_id: string;
+          content: string;
+          updated_by: string | null;
+          created_at: string;
+          updated_at: string;
+        },
+        {
+          company_id: string;
+          content?: string;
+          updated_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        },
+        {
+          company_id?: string;
+          content?: string;
+          updated_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        }
+      >;
     };
     Views: Record<string, never>;
     Functions: {
@@ -447,6 +470,7 @@ export type Membership = Tables<"memberships">;
 export type CompanyRelation = Tables<"company_relations">;
 export type Shift = Tables<"shifts">;
 export type ShiftTemplate = Tables<"shift_templates">;
+export type CompanyDataPolicy = Tables<"company_data_policies">;
 export type VideoMetadata = Tables<"video_metadata">;
 export type DeletionRequest = Tables<"deletion_requests">;
 export type UserInvite = Tables<"user_invites">;

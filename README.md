@@ -110,6 +110,7 @@ Cada archivo es idempotente, así que puedes volver a ejecutarlos sin romper nad
 | `0011_recording_access_log.sql` | Bitácora inmutable de accesos a grabaciones (ARCO «acceso»). |
 | `0012_explicit_shift_assignment.sql` | Asignación **manual** de la grabación al turno: elimina el *matching* automático por patente + hora y añade `UNIQUE(shift_id)`. |
 | `0013_weekly_schedule.sql` | **Horario semanal**: tabla `shift_templates`, `shifts.template_id`, `generate_shift_occurrences()`, cron diario y *backfill* desde los turnos existentes. |
+| `0014_data_policies.sql` | **Declaración de uso y tratamiento de datos**: tabla `company_data_policies`, helpers `can_manage_company()` / `can_view_data_policy()` y endurecimiento de `companies_update`. |
 
 **Opción A — SQL Editor (sin instalar nada)**
 
@@ -290,8 +291,8 @@ Abre <http://localhost:3000> e inicia sesión con Google.
 | Rol | Rutas |
 | --- | --- |
 | Sin empresa activa | `/onboarding` (aceptar invitación o registrar empresa) |
-| DRIVER | `/driver` |
-| PROVIDER | `/provider` · `/provider/deletions` · `/provider/relations` |
+| DRIVER | `/driver` · `/driver/policies` |
+| PROVIDER | `/provider` · `/provider/deletions` · `/provider/relations` · `/provider/settings` |
 | MINING | `/mining` · `/mining/schedule` · `/mining/shifts` · `/mining/videos` · `/mining/members` · `/mining/providers` · `/mining/claims` · `/mining/access` · `/mining/settings` |
 | Cualquiera (con sesión) | `/invitations` (aceptar invitaciones nuevas) · `/admin` (solo platform admin) |
 
@@ -371,6 +372,7 @@ Todas las tablas tienen RLS activado. Las políticas usan funciones
 | `video_metadata` | Asignados vía `shifts.matched_video_id` | Donde `provider_id = empresa` | CRUD de su empresa |
 | `deletion_requests` | `driver_id = auth.uid()` (+ insert si está asignado) | Lectura + **update** solo de `provider_declared_*` | Lectura + update |
 | `recording_access_log` | Sus accesos + los de sus grabaciones asignadas | — | Los accesos a sus grabaciones (+ admin) |
+| `company_data_policies` | Lectura de su minera y de las proveedoras relacionadas | Lectura + edición de la suya | Lectura + edición de la suya |
 | `user_invites` | — | — | — (RLS sin políticas: solo `service_role`) |
 
 Guardas y automatismos:
@@ -491,6 +493,27 @@ con fecha a partir de él.
   existentes (agrupando conductor + patente + día de la semana + hora) y las
   enlaza, **sin modificar** ninguno de sus datos.
 
+## 8.quinquies Declaración de uso y tratamiento de datos
+
+Cada empresa (minera **o** proveedora) publica su propia declaración y el
+conductor puede leerla:
+
+- **Editor:** `/mining/settings` (minera) y `/provider/settings` (proveedora).
+  Incluye un botón **«Insertar plantilla sugerida»** (`lib/data-policy.ts`) con
+  un texto base adaptable: datos tratados, finalidad, terceros, plazo de
+  conservación, derechos ARCO y contacto.
+- **Vista del conductor:** `/driver/policies` — «Uso de datos» muestra la
+  declaración y la **fecha de última actualización** de cada empresa visible (su
+  minera y las proveedoras relacionadas). Solo lectura, sin datos de versiones.
+- **Permisos (RLS):** `can_manage_company()` → solo **personal** de la empresa
+  (membresía `ACTIVE` con `role <> 'DRIVER'`) o admin puede editar.
+  `can_view_data_policy()` → el personal, los conductores de esa minera, las
+  proveedoras relacionadas con su minera y las proveedoras que tienen sus
+  grabaciones.
+- **Endurecimiento incluido:** `companies_update` pasa a exigir
+  `can_manage_company(id)`; antes **cualquier miembro** (incluido un conductor,
+  que es miembro de su minera) podía modificar los ajustes de la empresa.
+
 ---
 
 ## 9. Despliegue en Vercel
@@ -553,6 +576,15 @@ Con la app desplegada y tres cuentas de Google (una por rol):
 **Proveedora**
 - [ ] En `/provider/deletions` veo el ticket y puedo **Declarar borrado**.
 - [ ] No veo tickets de otras proveedoras.
+- [ ] En `/provider/settings` publico mi declaración de uso y tratamiento.
+
+**Declaración de datos**
+- [ ] La minera publica su declaración en `/mining/settings` (con la plantilla sugerida).
+- [ ] El conductor la ve en `/driver/policies` con la fecha de última actualización,
+      junto a la de las proveedoras relacionadas.
+- [ ] Un conductor **no** puede guardarla (RLS) ni modificar los ajustes de la empresa.
+- [ ] La minera ve los turnos libres del conductor elegido en el selector de
+      `/mining/videos` (buscador por nombre/correo).
 
 **General**
 - [ ] `/driver`, `/provider`, `/mining` y `/admin` redirigen a `/login` sin sesión.

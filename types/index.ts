@@ -152,6 +152,15 @@ export interface ScheduleDriverOption {
   label: string;
 }
 
+/** A company's data processing declaration, as shown to a driver. */
+export interface DataPolicyView {
+  companyId: string;
+  companyName: string;
+  companyType: CompanyType;
+  content: string;
+  updatedAt: string | null;
+}
+
 /** One row of the recording access log (ARCO "acceso"). */
 export interface AccessLogRow {
   id: string;

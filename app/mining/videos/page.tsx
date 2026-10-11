@@ -13,7 +13,7 @@ import { requireCompany } from "@/lib/auth";
 import { resolveMaxUploadMb } from "@/lib/constants";
 import { formatDateTime, toDateInputValue, toTimeInputValue } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
-import type { MiningVideoRow } from "@/types";
+import type { MiningVideoRow, ScheduleDriverOption } from "@/types";
 
 export const metadata = { title: "Grabaciones" };
 
@@ -122,19 +122,27 @@ export default async function MiningVideosPage() {
     ]),
   );
 
-  const shiftOptions: ShiftOption[] = (availableShifts ?? []).map((shift) => {
-    const driver = usersById.get(shift.driver_user_id);
-    const driverLabel = driver?.full_name ?? driver?.email ?? "";
+  const shiftOptions: ShiftOption[] = (availableShifts ?? []).map((shift) => ({
+    id: shift.id,
+    licensePlate: shift.license_plate,
+    startsAt: shift.starts_at,
+    driverUserId: shift.driver_user_id,
+    label: `${shift.license_plate} · ${formatDateTime(shift.starts_at)}`,
+  }));
 
-    return {
-      id: shift.id,
-      licensePlate: shift.license_plate,
-      startsAt: shift.starts_at,
-      label: [shift.license_plate, formatDateTime(shift.starts_at), driverLabel]
-        .filter(Boolean)
-        .join(" · "),
-    };
-  });
+  // Drivers that still have free shifts in the window (used by the picker).
+  const driversWithShifts: ScheduleDriverOption[] = [
+    ...new Set((availableShifts ?? []).map((shift) => shift.driver_user_id)),
+  ]
+    .map((userId) => {
+      const driver = usersById.get(userId);
+
+      return {
+        userId,
+        label: driver?.full_name ?? driver?.email ?? "Conductor",
+      };
+    })
+    .sort((a, b) => a.label.localeCompare(b.label));
 
   const rows: MiningVideoRow[] = (videos ?? []).map((video) => ({
     id: video.id,
@@ -176,6 +184,7 @@ export default async function MiningVideosPage() {
           <CardContent>
             <VideoUploadForm
               providers={providers}
+              drivers={driversWithShifts}
               shifts={shiftOptions}
               defaultDate={toDateInputValue(now)}
               defaultTime={toTimeInputValue(now)}

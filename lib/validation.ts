@@ -169,6 +169,15 @@ export const requestDeletionSchema = z.object({
   videoId: idSchema("Registro de video inválido"),
 });
 
+/** A company's data processing declaration ("uso y tratamiento de datos"). */
+export const dataPolicySchema = z.object({
+  content: z
+    .string()
+    .trim()
+    .min(1, "La declaración no puede estar vacía")
+    .max(20000, "La declaración es demasiado larga"),
+});
+
 /** Simple id-only payloads. */
 export const requestIdSchema = z.object({
   requestId: idSchema("Solicitud inválida"),

@@ -17,7 +17,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/lib/supabase/client";
 import { formatMegabytes } from "@/lib/constants";
 import { toDateInputValue, toTimeInputValue } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { initialActionState } from "@/types/actions";
+import type { ScheduleDriverOption } from "@/types";
 
 export interface ProviderOption {
   id: string;
@@ -29,6 +31,7 @@ export interface ShiftOption {
   label: string;
   licensePlate: string;
   startsAt: string;
+  driverUserId: string;
 }
 
 function FieldError({ message }: { message?: string }) {
@@ -46,12 +49,14 @@ function FieldError({ message }: { message?: string }) {
  */
 export function VideoUploadForm({
   providers,
+  drivers,
   shifts,
   defaultDate,
   defaultTime,
   maxUploadMb,
 }: {
   providers: ProviderOption[];
+  drivers: ScheduleDriverOption[];
   shifts: ShiftOption[];
   defaultDate: string;
   defaultTime: string;
@@ -63,6 +68,58 @@ export function VideoUploadForm({
     initialActionState,
   );
   const [uploading, setUploading] = useState(false);
+  const [driverSearch, setDriverSearch] = useState("");
+  const [driverUserId, setDriverUserId] = useState("");
+
+  const query = driverSearch.trim().toLowerCase();
+  // Keep the selected driver visible even when the search no longer matches.
+  const visibleDrivers = query
+    ? drivers.filter(
+        (driver) =>
+          driver.label.toLowerCase().includes(query) ||
+          driver.userId === driverUserId,
+      )
+    : drivers;
+
+  const driverShifts = shifts.filter(
+    (shift) => shift.driverUserId === driverUserId,
+  );
+
+  /** Clears the metadata prefilled by a previously selected shift. */
+  function clearShiftFields() {
+    const form = formRef.current;
+
+    if (!form) {
+      return;
+    }
+
+    const plate = form.elements.namedItem(
+      "licensePlate",
+    ) as HTMLInputElement | null;
+    const date = form.elements.namedItem(
+      "recordedDate",
+    ) as HTMLInputElement | null;
+    const time = form.elements.namedItem(
+      "recordedTime",
+    ) as HTMLInputElement | null;
+
+    if (plate) {
+      plate.value = "";
+    }
+
+    if (date) {
+      date.value = defaultDate;
+    }
+
+    if (time) {
+      time.value = defaultTime;
+    }
+  }
+
+  function handleDriverSelect(userId: string) {
+    setDriverUserId((current) => (current === userId ? "" : userId));
+    clearShiftFields();
+  }
 
   /**
    * Picking a shift prefills plate + start time (still editable). The fields
@@ -197,34 +254,88 @@ export function VideoUploadForm({
       </div>
 
       <div className="space-y-2">
+        <Label htmlFor="driverSearch">Conductor</Label>
+        <Input
+          id="driverSearch"
+          value={driverSearch}
+          onChange={(event) => setDriverSearch(event.target.value)}
+          placeholder="Buscar conductor por nombre o correo…"
+          autoComplete="off"
+        />
+
+        {drivers.length === 0 ? (
+          <p className="text-muted-foreground text-xs">
+            No hay turnos libres. Créalos en{" "}
+            <Link href="/mining/schedule" className="underline">
+              Horario
+            </Link>{" "}
+            y pulsa «Generar turnos».
+          </p>
+        ) : (
+          <div className="max-h-40 overflow-y-auto rounded-md border">
+            {visibleDrivers.length === 0 ? (
+              <p className="text-muted-foreground p-2 text-xs">
+                Sin coincidencias.
+              </p>
+            ) : (
+              visibleDrivers.map((driver) => (
+                <button
+                  key={driver.userId}
+                  type="button"
+                  onClick={() => handleDriverSelect(driver.userId)}
+                  className={cn(
+                    "hover:bg-accent flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors",
+                    driver.userId === driverUserId && "bg-accent font-medium",
+                  )}
+                >
+                  <span className="truncate">{driver.label}</span>
+                  <span className="text-muted-foreground text-xs">
+                    {
+                      shifts.filter(
+                        (shift) => shift.driverUserId === driver.userId,
+                      ).length
+                    }{" "}
+                    turno(s)
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        )}
+
+        <p className="text-muted-foreground text-xs">
+          {driverUserId
+            ? "Ahora elige uno de sus turnos libres."
+            : "Opcional: si no eliges conductor, se guarda solo la metadata."}
+        </p>
+      </div>
+
+      <div className="space-y-2">
         <Label htmlFor="shiftId">Turno a asignar</Label>
         <select
+          key={driverUserId}
           id="shiftId"
           name="shiftId"
           defaultValue=""
           onChange={(event) => handleShiftChange(event.target.value)}
           className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
         >
-          <option value="">Sin asignar (solo metadatos)</option>
-          {shifts.map((shift) => (
-            <option key={shift.id} value={shift.id}>
-              {shift.label}
-            </option>
-          ))}
+          {driverUserId ? (
+            <>
+              <option value="">Sin asignar (solo metadatos)</option>
+              {driverShifts.map((shift) => (
+                <option key={shift.id} value={shift.id}>
+                  {shift.label}
+                </option>
+              ))}
+            </>
+          ) : (
+            <option value="">Selecciona un conductor primero</option>
+          )}
         </select>
-        {shifts.length === 0 ? (
-          <p className="text-muted-foreground text-xs">
-            No hay turnos libres. Créalos en{" "}
-            <Link href="/mining/shifts" className="underline">
-              Turnos
-            </Link>{" "}
-            para poder asignar la grabación.
-          </p>
-        ) : (
-          <p className="text-muted-foreground text-xs">
-            Solo se listan los turnos que aún no tienen una grabación asignada.
-          </p>
-        )}
+        <p className="text-muted-foreground text-xs">
+          Solo se listan los turnos libres del conductor elegido.
+        </p>
         <FieldError message={errors.shiftId} />
       </div>
 

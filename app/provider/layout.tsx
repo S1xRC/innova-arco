@@ -6,6 +6,7 @@ const NAV_ITEMS = [
   { href: "/provider", label: "Resumen" },
   { href: "/provider/deletions", label: "Borrado de grabaciones" },
   { href: "/provider/relations", label: "Relaciones" },
+  { href: "/provider/settings", label: "Ajustes" },
 ];
 
 export default async function ProviderLayout({

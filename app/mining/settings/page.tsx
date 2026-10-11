@@ -1,4 +1,5 @@
 import { CompanySettingsForm } from "@/components/company-settings-form";
+import { DataPolicyForm } from "@/components/data-policy-form";
 import {
   Card,
   CardContent,
@@ -16,29 +17,40 @@ export default async function MiningSettingsPage() {
   const profile = await requireCompany("MINING");
   const supabase = await createClient();
 
-  const { data: company } = await supabase
-    .from("companies")
-    .select("name, support_email, deletion_grace_days")
-    .eq("id", profile.companyId)
-    .maybeSingle();
+  const [{ data: company }, { data: policy }] = await Promise.all([
+    supabase
+      .from("companies")
+      .select("name, support_email, deletion_grace_days")
+      .eq("id", profile.companyId)
+      .maybeSingle(),
+    supabase
+      .from("company_data_policies")
+      .select("content, updated_at")
+      .eq("company_id", profile.companyId)
+      .maybeSingle(),
+  ]);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           Ajustes de la empresa
         </h1>
         <p className="text-muted-foreground text-sm">
-          Configura el plazo de retención de las grabaciones. Para mostrar el
-          prototipo puedes elegir el <strong>borrado instantáneo</strong>.
+          Configura el plazo de retención de las grabaciones y publica tu
+          declaración de uso y tratamiento de datos.
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">{company?.name ?? "Mi empresa"}</CardTitle>
+          <CardTitle className="text-base">
+            {company?.name ?? "Mi empresa"}
+          </CardTitle>
           <CardDescription>
-            El plazo por defecto es de {DEFAULT_DELETION_GRACE_DAYS} días.
+            El plazo por defecto es de {DEFAULT_DELETION_GRACE_DAYS} días. Para
+            mostrar el prototipo puedes elegir el{" "}
+            <strong>borrado instantáneo</strong>.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -50,6 +62,25 @@ export default async function MiningSettingsPage() {
           />
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">
+            Declaración de uso y tratamiento de datos
+          </CardTitle>
+          <CardDescription>
+            Visible para los conductores en su sección «Uso de datos». Puedes
+            partir de la plantilla sugerida y adaptarla a tu empresa.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <DataPolicyForm
+            content={policy?.content ?? ""}
+            updatedAt={policy?.updated_at ?? null}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }
+
