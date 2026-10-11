@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
 
   const { data: profile } = await supabase
     .from("users")
-    .select("role, company_id")
+    .select("role, active_company_id")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${base}${next}`);
   }
 
-  if (profile.role === "DRIVER" && !profile.company_id) {
+  if (!profile.active_company_id) {
     return NextResponse.redirect(`${base}/onboarding`);
   }
 

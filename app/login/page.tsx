@@ -26,7 +26,7 @@ export default async function LoginPage({
   const profile = await getSessionProfile();
 
   if (profile) {
-    if (profile.role === "DRIVER" && !profile.companyId) {
+    if (!profile.companyId && !profile.isPlatformAdmin) {
       redirect("/onboarding");
     }
     redirect(roleHomePath(profile.role));

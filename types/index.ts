@@ -1,61 +1,160 @@
-import type { Company, DeletionRequest, UserProfile, VideoMetadata } from "./database";
+import type { CompanyType, DeletionRequest, Json, UserRole } from "./database";
 
 export type {
   Company,
+  CompanyRelation,
   CompanyType,
   Database,
   DeletionRequest,
   DeletionStatus,
   Json,
+  Membership,
+  MembershipStatus,
+  RelationStatus,
+  Shift,
   Tables,
   UserProfile,
   UserRole,
   VideoMetadata,
 } from "./database";
 
-/** Snapshot of the authenticated user + their profile row. */
+/** One of the companies a user belongs to (active membership). */
+export interface MembershipSummary {
+  id: string;
+  companyId: string;
+  companyName: string;
+  companyType: CompanyType;
+  role: UserRole;
+  status: "INVITED" | "ACTIVE" | "REVOKED";
+}
+
+/** Snapshot of the authenticated user + their profile row + memberships. */
 export interface SessionProfile {
   id: string;
   email: string;
-  role: UserProfile["role"];
+  role: UserRole;
+  /** Active company id (chosen among the user's memberships). */
   companyId: string | null;
   companyName: string | null;
+  companyType: CompanyType | null;
   fullName: string | null;
   avatarUrl: string | null;
+  isPlatformAdmin: boolean;
+  memberships: MembershipSummary[];
 }
 
-/** A driver row enriched with provider info and the state of any deletion request. */
-export interface DriverRecord {
+/** A recording as seen by the driver (assigned through a shift). */
+export interface DriverRecording {
   id: string;
   licensePlate: string;
   recordedAt: string;
+  externalId: string | null;
   providerName: string;
+  shiftStartsAt: string | null;
   requestId: string | null;
   requestStatus: DeletionRequest["status"] | null;
+  scheduledDeletionAt: string | null;
+  providerDeclaredAt: string | null;
+  deletedAt: string | null;
 }
 
-/** A claim as seen by the camera provider. */
-export interface ProviderClaim {
+/** A shift (turno) as shown in the mining company dashboard. */
+export interface ShiftRow {
+  id: string;
+  licensePlate: string;
+  startsAt: string;
+  notes: string | null;
+  driverUserId: string;
+  driverEmail: string;
+  driverName: string | null;
+  matchedVideoId: string | null;
+  videoDeletedAt: string | null;
+}
+
+/** A deletion request as seen inside the mining company portal. */
+export interface MiningClaimRow {
+  id: string;
+  status: DeletionRequest["status"];
+  createdAt: string;
+  scheduledDeletionAt: string | null;
+  resolvedAt: string | null;
+  autoDeletedAt: string | null;
+  licensePlate: string;
+  recordedAt: string;
+  driverEmail: string;
+  providerName: string | null;
+  providerDeclaredAt: string | null;
+}
+
+/** A deletion ticket shown to the camera provider. */
+export interface ProviderDeletionTicket {
   id: string;
   videoId: string;
   status: DeletionRequest["status"];
   createdAt: string;
+  scheduledDeletionAt: string | null;
   resolvedAt: string | null;
+  autoDeletedAt: string | null;
   licensePlate: string;
   recordedAt: string;
+  miningName: string;
   driverEmail: string;
+  providerDeclaredAt: string | null;
+  providerNote: string | null;
 }
 
-/** A read-only audit row for the mining company portal. */
-export interface MiningAuditRow {
+/** A row of the mining company's own video catalogue. */
+export interface MiningVideoRow {
   id: string;
-  status: DeletionRequest["status"];
-  createdAt: string;
-  resolvedAt: string | null;
+  externalId: string | null;
   licensePlate: string;
   recordedAt: string;
-  driverEmail: string;
-  providerName: string;
+  providerName: string | null;
+  storagePath: string | null;
+  deletedAt: string | null;
+  shiftStartsAt: string | null;
+  driverEmail: string | null;
+  extraInfo: Json | null;
 }
 
-export type { Company as CompanyRecord, VideoMetadata as VideoMetadataRecord };
+/** A company member (driver or staff) with their membership state. */
+export interface CompanyMember {
+  id: string;
+  userId: string | null;
+  email: string;
+  role: UserRole;
+  status: "INVITED" | "ACTIVE" | "REVOKED";
+  createdAt: string;
+  acceptedAt: string | null;
+}
+
+/** A mining <-> provider relation. */
+export interface CompanyRelationRow {
+  id: string;
+  providerId: string;
+  providerName: string;
+  providerEmail: string | null;
+  status: "INVITED" | "ACTIVE" | "REVOKED";
+  createdAt: string;
+  acceptedAt: string | null;
+}
+
+/** A pending invitation the signed-in user can accept. */
+export interface PendingInvitation {
+  id: string;
+  companyId: string;
+  companyName: string;
+  companyType: CompanyType;
+  role: UserRole;
+  createdAt: string;
+}
+
+/** A user row for the platform-admin role manager. */
+export interface AdminUserRow {
+  id: string;
+  email: string;
+  role: UserRole;
+  fullName: string | null;
+  isPlatformAdmin: boolean;
+  createdAt: string;
+}

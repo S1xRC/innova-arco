@@ -20,19 +20,19 @@ const ROLES = [
     icon: Camera,
     title: "Proveedor de cámaras",
     description:
-      "Sube los metadatos de tus grabaciones y gestiona las solicitudes de borrado de tus clientes.",
+      "Recibe los tickets de borrado y declara la eliminación de las grabaciones en sus propios sistemas.",
   },
   {
     icon: Users,
     title: "Conductor",
     description:
-      "Revisa todos tus registros de video y ejerce tu derecho de supresión en un clic.",
+      "Ve las grabaciones asignadas a sus turnos, pide el borrado y comprueba si la proveedora lo confirmó.",
   },
   {
     icon: ShieldCheck,
     title: "Empresa minera",
     description:
-      "Audita que los proveedores respeten los derechos de tus trabajadores.",
+      "Invita a sus conductores y proveedoras, define turnos, sube grabaciones y configura el plazo de borrado.",
   },
 ];
 

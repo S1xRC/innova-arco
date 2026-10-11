@@ -1,4 +1,10 @@
-import type { DeletionStatus, UserRole } from "@/types/database";
+import type {
+  CompanyType,
+  DeletionStatus,
+  MembershipStatus,
+  RelationStatus,
+  UserRole,
+} from "@/types/database";
 
 /** Human readable Spanish labels for the three platform roles. */
 export const ROLE_LABELS: Record<UserRole, string> = {
@@ -29,6 +35,33 @@ export const AUDIT_STATUS_LABELS: Record<DeletionStatus, string> = {
   PENDING: "Pendiente",
   DELETED: "Resuelto",
 };
+
+export const MEMBERSHIP_STATUS_LABELS: Record<MembershipStatus, string> = {
+  INVITED: "Invitado",
+  ACTIVE: "Activo",
+  REVOKED: "Revocado",
+};
+
+export const RELATION_STATUS_LABELS: Record<RelationStatus, string> = {
+  INVITED: "Invitación enviada",
+  ACTIVE: "Activa",
+  REVOKED: "Revocada",
+};
+
+export const COMPANY_TYPE_LABELS: Record<CompanyType, string> = {
+  MINING: "Empresa minera",
+  PROVIDER: "Proveedor de cámaras",
+};
+
+/** Retention policy options offered to mining companies. */
+export const DELETION_POLICY_OPTIONS: Array<{ value: number; label: string }> = [
+  { value: 30, label: "30 días (recomendado)" },
+  { value: 7, label: "7 días" },
+  { value: 1, label: "1 día" },
+  { value: 0, label: "Instantáneo (demo)" },
+];
+
+export const DEFAULT_DELETION_GRACE_DAYS = 30;
 
 export const APP_NAME = "Innova ARCO";
 export const APP_DESCRIPTION =

@@ -1,4 +1,4 @@
-import { Camera, FileWarning, ShieldCheck, Upload } from "lucide-react";
+import { CheckCheck, FileWarning, Handshake } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -9,48 +9,48 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { requireRole } from "@/lib/auth";
+import { requireCompany } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata = { title: "Resumen del proveedor" };
+export const metadata = { title: "Panel de la proveedora" };
 
 export default async function ProviderOverviewPage() {
-  const profile = await requireRole(["PROVIDER"]);
+  const profile = await requireCompany("PROVIDER");
   const supabase = await createClient();
 
-  const [{ count: videoCount }, { data: requests }] = await Promise.all([
+  const [{ data: tickets }, { data: relations }] = await Promise.all([
+    supabase.from("deletion_requests").select("id, status, provider_declared_at"),
     supabase
-      .from("video_metadata")
-      .select("id", { count: "exact", head: true }),
-    supabase.from("deletion_requests").select("id, status"),
+      .from("company_relations")
+      .select("id, status")
+      .eq("provider_id", profile.companyId),
   ]);
 
-  const pending = (requests ?? []).filter(
-    (request) => request.status === "PENDING",
+  const pending = (tickets ?? []).filter(
+    (ticket) => ticket.status === "PENDING",
   ).length;
-  const resolved = (requests ?? []).filter(
-    (request) => request.status === "DELETED",
+  const declared = (tickets ?? []).filter(
+    (ticket) => ticket.provider_declared_at,
+  ).length;
+  const activeRelations = (relations ?? []).filter(
+    (relation) => relation.status === "ACTIVE",
   ).length;
 
   const stats = [
-    {
-      icon: Camera,
-      label: "Registros subidos",
-      value: videoCount ?? 0,
-    },
-    { icon: FileWarning, label: "Reclamos pendientes", value: pending },
-    { icon: ShieldCheck, label: "Reclamos resueltos", value: resolved },
+    { icon: FileWarning, label: "Tickets pendientes", value: pending },
+    { icon: CheckCheck, label: "Borrados declarados", value: declared },
+    { icon: Handshake, label: "Mineras activas", value: activeRelations },
   ];
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
-          Hola, {profile.companyName ?? "proveedor"}
+          Hola, {profile.companyName ?? "proveedora"}
         </h1>
         <p className="text-muted-foreground text-sm">
-          Gestiona la ingesta de metadatos y responde a las solicitudes de
-          borrado (derechos ARCO) de los conductores.
+          Cuando un conductor solicite el borrado de una grabación, verás aquí una
+          fila pidiendo eliminarla también de tus propios sistemas.
         </p>
       </div>
 
@@ -72,36 +72,29 @@ export default async function ProviderOverviewPage() {
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Subir metadatos</CardTitle>
+            <CardTitle className="text-base">Borrado de grabaciones</CardTitle>
             <CardDescription>
-              Registra manualmente la patente, fecha, hora y correo del
-              conductor. En producción esto llegará vía la API de las cámaras.
+              Revisa los tickets y declara el borrado en tus sistemas.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild>
-              <Link href="/provider/upload">
-                <Upload className="size-4" />
-                Ir al formulario
-              </Link>
+              <Link href="/provider/deletions">Ver tickets</Link>
             </Button>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Bandeja de reclamos</CardTitle>
+            <CardTitle className="text-base">Relaciones con mineras</CardTitle>
             <CardDescription>
-              Revisa las solicitudes de borrado de tus registros y márcalas como
-              resueltas una vez eliminado el dato.
+              Acepta las invitaciones de relación de las empresas mineras que te
+              contratan.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild variant="outline">
-              <Link href="/provider/claims">
-                <FileWarning className="size-4" />
-                Ver reclamos
-              </Link>
+              <Link href="/provider/relations">Ver relaciones</Link>
             </Button>
           </CardContent>
         </Card>

@@ -1,11 +1,11 @@
 import { AppHeader } from "@/components/app-header";
 import { SectionNav } from "@/components/section-nav";
-import { requireRole } from "@/lib/auth";
+import { requireCompany } from "@/lib/auth";
 
 const NAV_ITEMS = [
   { href: "/provider", label: "Resumen" },
-  { href: "/provider/upload", label: "Subir metadatos" },
-  { href: "/provider/claims", label: "Bandeja de reclamos" },
+  { href: "/provider/deletions", label: "Borrado de grabaciones" },
+  { href: "/provider/relations", label: "Relaciones" },
 ];
 
 export default async function ProviderLayout({
@@ -13,7 +13,7 @@ export default async function ProviderLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const profile = await requireRole(["PROVIDER"]);
+  const profile = await requireCompany("PROVIDER");
 
   return (
     <div className="flex min-h-svh flex-col">

@@ -184,3 +184,38 @@ export function combineDateTime(date: string, time: string): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+/**
+ * Returns the number of whole days between now and `value` (rounded up).
+ * Negative when the value is in the past.
+ */
+export function daysUntil(value: string | Date): number {
+  const target = toDate(value).getTime();
+  const diff = target - Date.now();
+  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+}
+
+/** Human readable countdown, e.g. "quedan 12 días" / "vencido". */
+export function formatRemaining(value: string | Date): string {
+  const days = daysUntil(value);
+
+  if (days < 0) {
+    return "vencido";
+  }
+
+  if (days === 0) {
+    return "hoy";
+  }
+
+  if (days === 1) {
+    return "queda 1 día";
+  }
+
+  return `quedan ${days} días`;
+}
+
+/** Adds `days` to a date and returns a new Date. */
+export function addDays(value: string | Date, days: number): Date {
+  return new Date(toDate(value).getTime() + days * 24 * 60 * 60 * 1000);
+}
+
+

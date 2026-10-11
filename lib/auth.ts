@@ -3,11 +3,16 @@ import { redirect } from "next/navigation";
 
 import { roleHomePath } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/server";
-import type { SessionProfile, UserRole } from "@/types";
+import type {
+  CompanyType,
+  MembershipSummary,
+  SessionProfile,
+  UserRole,
+} from "@/types";
 
 /**
- * Loads the authenticated user together with their `public.users` profile.
- * Cached per request so multiple components can call it freely.
+ * Loads the authenticated user together with their `public.users` profile and
+ * their company memberships. Cached per request.
  *
  * Returns `null` when there is no session or the profile row is missing.
  */
@@ -26,7 +31,9 @@ export const getSessionProfile = cache(
 
     const { data: profile, error: profileError } = await supabase
       .from("users")
-      .select("id, email, role, company_id, full_name, avatar_url")
+      .select(
+        "id, email, role, active_company_id, is_platform_admin, full_name, avatar_url",
+      )
       .eq("id", user.id)
       .maybeSingle();
 
@@ -34,26 +41,57 @@ export const getSessionProfile = cache(
       return null;
     }
 
-    let companyName: string | null = null;
+    const { data: membershipRows } = await supabase
+      .from("memberships")
+      .select("id, company_id, role, status")
+      .eq("user_id", user.id)
+      .neq("status", "REVOKED");
 
-    if (profile.company_id) {
-      const { data: company } = await supabase
-        .from("companies")
-        .select("name")
-        .eq("id", profile.company_id)
-        .maybeSingle();
+    const companyIds = [
+      ...new Set((membershipRows ?? []).map((row) => row.company_id)),
+    ];
 
-      companyName = company?.name ?? null;
-    }
+    const { data: companies } = companyIds.length
+      ? await supabase
+          .from("companies")
+          .select("id, name, type")
+          .in("id", companyIds)
+      : { data: [] };
+
+    const companiesById = new Map(
+      (companies ?? []).map((company) => [company.id, company]),
+    );
+
+    const memberships: MembershipSummary[] = (membershipRows ?? []).map(
+      (row) => {
+        const company = companiesById.get(row.company_id);
+
+        return {
+          id: row.id,
+          companyId: row.company_id,
+          companyName: company?.name ?? "Empresa",
+          companyType: company?.type ?? "MINING",
+          role: row.role,
+          status: row.status,
+        };
+      },
+    );
+
+    const activeCompany = profile.active_company_id
+      ? companiesById.get(profile.active_company_id)
+      : undefined;
 
     return {
       id: profile.id,
       email: profile.email || user.email || "",
       role: profile.role,
-      companyId: profile.company_id,
-      companyName,
+      companyId: profile.active_company_id,
+      companyName: activeCompany?.name ?? null,
+      companyType: activeCompany?.type ?? null,
       fullName: profile.full_name,
       avatarUrl: profile.avatar_url,
+      isPlatformAdmin: profile.is_platform_admin,
+      memberships,
     };
   },
 );
@@ -71,8 +109,8 @@ export async function requireProfile(): Promise<SessionProfile> {
 
 /**
  * Requires the authenticated user to hold one of the allowed roles.
- * - Wrong role  -> redirected to their own dashboard.
- * - Driver without a mining company -> redirected to onboarding.
+ * - Wrong role -> redirected to their own dashboard.
+ * - Driver without an active company -> redirected to onboarding.
  */
 export async function requireRole(
   allowed: UserRole[],
@@ -85,6 +123,33 @@ export async function requireRole(
 
   if (profile.role === "DRIVER" && !profile.companyId) {
     redirect("/onboarding");
+  }
+
+  return profile;
+}
+
+/** Requires an active company of the expected type. */
+export async function requireCompany(
+  type: CompanyType,
+): Promise<SessionProfile & { companyId: string; companyType: CompanyType }> {
+  const profile = await requireProfile();
+
+  if (!profile.companyId || profile.companyType !== type) {
+    redirect("/onboarding");
+  }
+
+  return profile as SessionProfile & {
+    companyId: string;
+    companyType: CompanyType;
+  };
+}
+
+/** Requires the platform admin flag. */
+export async function requirePlatformAdmin(): Promise<SessionProfile> {
+  const profile = await requireProfile();
+
+  if (!profile.isPlatformAdmin) {
+    redirect(roleHomePath(profile.role));
   }
 
   return profile;

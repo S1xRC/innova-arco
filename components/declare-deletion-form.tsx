@@ -4,13 +4,15 @@ import { CheckCheck } from "lucide-react";
 import { useActionState, useEffect } from "react";
 import { toast } from "sonner";
 
-import { resolveDeletionRequestAction } from "@/actions/provider";
+import { declareProviderDeletionAction } from "@/actions/deletions";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { initialActionState } from "@/types/actions";
 
-export function ResolveClaimButton({ requestId }: { requestId: string }) {
+/** Provider declares it deleted the recording from its own systems. */
+export function DeclareDeletionForm({ requestId }: { requestId: string }) {
   const [state, formAction, pending] = useActionState(
-    resolveDeletionRequestAction,
+    declareProviderDeletionAction,
     initialActionState,
   );
 
@@ -25,11 +27,17 @@ export function ResolveClaimButton({ requestId }: { requestId: string }) {
   }, [state]);
 
   return (
-    <form action={formAction}>
+    <form action={formAction} className="flex items-center justify-end gap-2">
       <input type="hidden" name="requestId" value={requestId} />
+      <Input
+        name="note"
+        placeholder="Nota (opcional)"
+        className="h-8 max-w-40"
+        autoComplete="off"
+      />
       <Button type="submit" size="sm" disabled={pending}>
         <CheckCheck className="size-4" />
-        {pending ? "Procesando…" : "Marcar como eliminado"}
+        {pending ? "Guardando…" : "Declarar borrado"}
       </Button>
     </form>
   );

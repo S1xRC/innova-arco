@@ -46,3 +46,5 @@ next-env.d.ts
 # datos locales (contienen correos reales; NO versionar)
 /supabase/seed.sql
 /supabase/reset.sql
+pendiente.md
+.gitignore

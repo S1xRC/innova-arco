@@ -7,7 +7,7 @@ import { roleHomePath } from "@/lib/constants";
 export default async function DashboardRouterPage() {
   const profile = await requireProfile();
 
-  if (profile.role === "DRIVER" && !profile.companyId) {
+  if (!profile.companyId && !profile.isPlatformAdmin) {
     redirect("/onboarding");
   }
 

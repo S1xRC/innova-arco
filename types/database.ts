@@ -18,178 +18,312 @@ export type Json =
 export type CompanyType = "MINING" | "PROVIDER";
 export type UserRole = "DRIVER" | "PROVIDER" | "MINING";
 export type DeletionStatus = "PENDING" | "DELETED";
+export type MembershipStatus = "INVITED" | "ACTIVE" | "REVOKED";
+export type RelationStatus = "INVITED" | "ACTIVE" | "REVOKED";
+
+/** Compact helper mirroring the shape Supabase generates per table. */
+type DbTable<
+  TRow,
+  TInsert,
+  TUpdate,
+  TRelationships extends readonly unknown[] = [],
+> = {
+  Row: TRow;
+  Insert: TInsert;
+  Update: TUpdate;
+  Relationships: TRelationships;
+};
 
 export interface Database {
   public: {
     Tables: {
-      companies: {
-        Row: {
+      companies: DbTable<
+        {
           id: string;
           name: string;
           type: CompanyType;
           support_email: string | null;
+          deletion_grace_days: number;
+          created_by: string | null;
           created_at: string;
-        };
-        Insert: {
+        },
+        {
           id?: string;
           name: string;
           type: CompanyType;
           support_email?: string | null;
+          deletion_grace_days?: number;
+          created_by?: string | null;
           created_at?: string;
-        };
-        Update: {
+        },
+        {
           id?: string;
           name?: string;
           type?: CompanyType;
           support_email?: string | null;
+          deletion_grace_days?: number;
+          created_by?: string | null;
           created_at?: string;
-        };
-        Relationships: [];
-      };
-      users: {
-        Row: {
+        }
+      >;
+      users: DbTable<
+        {
           id: string;
           email: string;
           role: UserRole;
-          company_id: string | null;
+          active_company_id: string | null;
+          is_platform_admin: boolean;
           full_name: string | null;
           avatar_url: string | null;
           created_at: string;
-        };
-        Insert: {
+        },
+        {
           id: string;
           email: string;
           role?: UserRole;
-          company_id?: string | null;
+          active_company_id?: string | null;
+          is_platform_admin?: boolean;
           full_name?: string | null;
           avatar_url?: string | null;
           created_at?: string;
-        };
-        Update: {
+        },
+        {
           id?: string;
           email?: string;
           role?: UserRole;
-          company_id?: string | null;
+          active_company_id?: string | null;
+          is_platform_admin?: boolean;
           full_name?: string | null;
           avatar_url?: string | null;
           created_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "users_company_id_fkey";
-            columns: ["company_id"];
-            isOneToOne: false;
-            referencedRelation: "companies";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
-      video_metadata: {
-        Row: {
+        }
+      >;
+      memberships: DbTable<
+        {
           id: string;
-          provider_id: string;
-          driver_email: string;
-          license_plate: string;
-          recorded_at: string;
+          company_id: string;
+          user_id: string | null;
+          role: UserRole;
+          status: MembershipStatus;
+          invited_email: string;
+          invited_by: string | null;
           created_at: string;
-        };
-        Insert: {
+          accepted_at: string | null;
+          revoked_at: string | null;
+        },
+        {
           id?: string;
+          company_id: string;
+          user_id?: string | null;
+          role?: UserRole;
+          status?: MembershipStatus;
+          invited_email: string;
+          invited_by?: string | null;
+          created_at?: string;
+          accepted_at?: string | null;
+          revoked_at?: string | null;
+        },
+        {
+          id?: string;
+          company_id?: string;
+          user_id?: string | null;
+          role?: UserRole;
+          status?: MembershipStatus;
+          invited_email?: string;
+          invited_by?: string | null;
+          created_at?: string;
+          accepted_at?: string | null;
+          revoked_at?: string | null;
+        }
+      >;
+      company_relations: DbTable<
+        {
+          id: string;
+          mining_id: string;
           provider_id: string;
-          driver_email: string;
+          status: RelationStatus;
+          invited_by: string | null;
+          created_at: string;
+          accepted_at: string | null;
+        },
+        {
+          id?: string;
+          mining_id: string;
+          provider_id: string;
+          status?: RelationStatus;
+          invited_by?: string | null;
+          created_at?: string;
+          accepted_at?: string | null;
+        },
+        {
+          id?: string;
+          mining_id?: string;
+          provider_id?: string;
+          status?: RelationStatus;
+          invited_by?: string | null;
+          created_at?: string;
+          accepted_at?: string | null;
+        }
+      >;
+
+      shifts: DbTable<
+        {
+          id: string;
+          mining_id: string;
+          driver_user_id: string;
+          license_plate: string;
+          starts_at: string;
+          notes: string | null;
+          matched_video_id: string | null;
+          video_deleted_at: string | null;
+          created_by: string | null;
+          created_at: string;
+        },
+        {
+          id?: string;
+          mining_id: string;
+          driver_user_id: string;
+          license_plate: string;
+          starts_at: string;
+          notes?: string | null;
+          matched_video_id?: string | null;
+          video_deleted_at?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        },
+        {
+          id?: string;
+          mining_id?: string;
+          driver_user_id?: string;
+          license_plate?: string;
+          starts_at?: string;
+          notes?: string | null;
+          matched_video_id?: string | null;
+          video_deleted_at?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        }
+      >;
+      video_metadata: DbTable<
+        {
+          id: string;
+          provider_id: string | null;
+          mining_id: string | null;
+          driver_email: string | null;
           license_plate: string;
           recorded_at: string;
-          created_at?: string;
-        };
-        Update: {
+          external_id: string | null;
+          extra_info: Json | null;
+          storage_path: string | null;
+          storage_size: number | null;
+          storage_mime: string | null;
+          shift_id: string | null;
+          deleted_at: string | null;
+          created_by: string | null;
+          created_at: string;
+        },
+        {
           id?: string;
-          provider_id?: string;
-          driver_email?: string;
+          provider_id?: string | null;
+          mining_id?: string | null;
+          driver_email?: string | null;
+          license_plate: string;
+          recorded_at: string;
+          external_id?: string | null;
+          extra_info?: Json | null;
+          storage_path?: string | null;
+          storage_size?: number | null;
+          storage_mime?: string | null;
+          shift_id?: string | null;
+          deleted_at?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        },
+        {
+          id?: string;
+          provider_id?: string | null;
+          mining_id?: string | null;
+          driver_email?: string | null;
           license_plate?: string;
           recorded_at?: string;
+          external_id?: string | null;
+          extra_info?: Json | null;
+          storage_path?: string | null;
+          storage_size?: number | null;
+          storage_mime?: string | null;
+          shift_id?: string | null;
+          deleted_at?: string | null;
+          created_by?: string | null;
           created_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "video_metadata_provider_id_fkey";
-            columns: ["provider_id"];
-            isOneToOne: false;
-            referencedRelation: "companies";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
-      deletion_requests: {
-        Row: {
+        }
+      >;
+      deletion_requests: DbTable<
+        {
           id: string;
           video_id: string;
           driver_id: string;
           status: DeletionStatus;
           created_at: string;
           resolved_at: string | null;
-        };
-        Insert: {
+          shift_id: string | null;
+          scheduled_deletion_at: string | null;
+          auto_deleted_at: string | null;
+          provider_id: string | null;
+          provider_declared_at: string | null;
+          provider_declared_by: string | null;
+          provider_note: string | null;
+        },
+        {
           id?: string;
           video_id: string;
           driver_id: string;
           status?: DeletionStatus;
           created_at?: string;
           resolved_at?: string | null;
-        };
-        Update: {
+          shift_id?: string | null;
+          scheduled_deletion_at?: string | null;
+          auto_deleted_at?: string | null;
+          provider_id?: string | null;
+          provider_declared_at?: string | null;
+          provider_declared_by?: string | null;
+          provider_note?: string | null;
+        },
+        {
           id?: string;
           video_id?: string;
           driver_id?: string;
           status?: DeletionStatus;
           created_at?: string;
           resolved_at?: string | null;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "deletion_requests_video_id_fkey";
-            columns: ["video_id"];
-            isOneToOne: false;
-            referencedRelation: "video_metadata";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "deletion_requests_driver_id_fkey";
-            columns: ["driver_id"];
-            isOneToOne: false;
-            referencedRelation: "users";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
-      user_invites: {
-        Row: {
+          shift_id?: string | null;
+          scheduled_deletion_at?: string | null;
+          auto_deleted_at?: string | null;
+          provider_id?: string | null;
+          provider_declared_at?: string | null;
+          provider_declared_by?: string | null;
+          provider_note?: string | null;
+        }
+      >;
+      user_invites: DbTable<
+        {
           email: string;
-          role: Exclude<UserRole, "DRIVER">;
+          role: UserRole;
           company_id: string | null;
           created_at: string;
-        };
-        Insert: {
+        },
+        {
           email: string;
-          role: Exclude<UserRole, "DRIVER">;
+          role: UserRole;
           company_id?: string | null;
           created_at?: string;
-        };
-        Update: {
+        },
+        {
           email?: string;
-          role?: Exclude<UserRole, "DRIVER">;
+          role?: UserRole;
           company_id?: string | null;
           created_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "user_invites_company_id_fkey";
-            columns: ["company_id"];
-            isOneToOne: false;
-            referencedRelation: "companies";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
+        }
+      >;
     };
     Views: Record<string, never>;
     Functions: {
@@ -201,11 +335,25 @@ export interface Database {
         Args: Record<string, never>;
         Returns: string;
       };
+      current_is_admin: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
+      create_company: {
+        Args: { p_name: string; p_type: CompanyType };
+        Returns: string;
+      };
+      process_due_deletions: {
+        Args: Record<string, never>;
+        Returns: number;
+      };
     };
     Enums: {
       company_type: CompanyType;
       user_role: UserRole;
       deletion_status: DeletionStatus;
+      membership_status: MembershipStatus;
+      relation_status: RelationStatus;
     };
     CompositeTypes: Record<string, never>;
   };
@@ -217,6 +365,9 @@ export type Tables<T extends keyof Database["public"]["Tables"]> =
 /** Convenience aliases for the row shapes used across the UI. */
 export type Company = Tables<"companies">;
 export type UserProfile = Tables<"users">;
+export type Membership = Tables<"memberships">;
+export type CompanyRelation = Tables<"company_relations">;
+export type Shift = Tables<"shifts">;
 export type VideoMetadata = Tables<"video_metadata">;
 export type DeletionRequest = Tables<"deletion_requests">;
 export type UserInvite = Tables<"user_invites">;

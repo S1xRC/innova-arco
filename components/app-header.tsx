@@ -1,6 +1,7 @@
 import { ShieldCheck } from "lucide-react";
 import Link from "next/link";
 
+import { CompanySwitcher } from "@/components/company-switcher";
 import { RoleBadge } from "@/components/role-badge";
 import { SignOutButton } from "@/components/sign-out-button";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -32,7 +33,12 @@ export function AppHeader({ profile }: { profile: SessionProfile }) {
         </Link>
 
         <div className="flex items-center gap-2">
-          <div className="hidden items-center gap-2 md:flex">
+          <CompanySwitcher
+            memberships={profile.memberships}
+            activeCompanyId={profile.companyId}
+          />
+
+          <div className="hidden items-center gap-2 lg:flex">
             <Avatar className="size-8">
               {profile.avatarUrl ? (
                 <AvatarImage
@@ -53,6 +59,20 @@ export function AppHeader({ profile }: { profile: SessionProfile }) {
           </div>
 
           <RoleBadge role={profile.role} />
+          <Link
+            href="/invitations"
+            className="text-muted-foreground hover:text-foreground hidden text-xs font-medium sm:inline"
+          >
+            Invitaciones
+          </Link>
+          {profile.isPlatformAdmin ? (
+            <Link
+              href="/admin"
+              className="text-muted-foreground hover:text-foreground hidden text-xs font-medium sm:inline"
+            >
+              Admin
+            </Link>
+          ) : null}
           <ThemeToggle />
           <SignOutButton />
         </div>

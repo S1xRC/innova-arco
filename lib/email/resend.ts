@@ -1,20 +1,31 @@
 import { Resend } from "resend";
 
 import {
-  buildDeletionRequestEmail,
-  buildDeletionRequestSubject,
-  buildDeletionRequestText,
-  type DeletionRequestEmailData,
+  buildDeletionCompletedEmail,
+  buildInvitationEmail,
+  buildProviderTicketEmail,
+  type EmailContent,
 } from "@/lib/email/templates";
 
 let cachedClient: Resend | null = null;
 
 /**
- * Returns a lazily-created Resend client, or `null` when `RESEND_API_KEY`
- * is not configured. Email delivery is best-effort: the ARCO request itself
- * is always persisted, even if the notification cannot be sent.
+ * Email is completely optional: the app works without Resend. When no API key
+ * is configured, invites are accepted from inside the app and every action
+ * still succeeds — notifications are simply skipped (and logged).
  */
-export function getResendClient(): Resend | null {
+export function isEmailEnabled(): boolean {
+  return Boolean(process.env.RESEND_API_KEY?.trim());
+}
+
+export function getFromAddress(): string {
+  return (
+    process.env.RESEND_FROM_EMAIL?.trim() ||
+    "Innova ARCO <onboarding@resend.dev>"
+  );
+}
+
+function getResendClient(): Resend | null {
   const apiKey = process.env.RESEND_API_KEY?.trim();
 
   if (!apiKey) {
@@ -28,23 +39,14 @@ export function getResendClient(): Resend | null {
   return cachedClient;
 }
 
-export function getFromAddress(): string {
-  return (
-    process.env.RESEND_FROM_EMAIL?.trim() ||
-    "Innova ARCO <onboarding@resend.dev>"
-  );
-}
-
 export interface SendEmailResult {
   sent: boolean;
   id?: string;
   reason?: string;
 }
 
-export async function sendDeletionNotification(
-  data: DeletionRequestEmailData,
-  to: string,
-): Promise<SendEmailResult> {
+/** Best-effort send. Never throws. */
+async function send(to: string, content: EmailContent): Promise<SendEmailResult> {
   const client = getResendClient();
 
   if (!client) {
@@ -52,26 +54,23 @@ export async function sendDeletionNotification(
   }
 
   if (!to || !to.includes("@")) {
-    return {
-      sent: false,
-      reason: "El proveedor no tiene un correo de soporte configurado",
-    };
+    return { sent: false, reason: "Destinatario inválido" };
   }
 
   try {
-    const { data: result, error } = await client.emails.send({
+    const { data, error } = await client.emails.send({
       from: getFromAddress(),
       to,
-      subject: buildDeletionRequestSubject(data),
-      html: buildDeletionRequestEmail(data),
-      text: buildDeletionRequestText(data),
+      subject: content.subject,
+      html: content.html,
+      text: content.text,
     });
 
     if (error) {
       return { sent: false, reason: error.message };
     }
 
-    return { sent: true, id: result?.id };
+    return { sent: true, id: data?.id };
   } catch (error) {
     return {
       sent: false,
@@ -81,4 +80,25 @@ export async function sendDeletionNotification(
           : "Error desconocido al enviar el correo",
     };
   }
+}
+
+export async function sendInvitationEmail(
+  to: string,
+  input: Parameters<typeof buildInvitationEmail>[0],
+): Promise<SendEmailResult> {
+  return send(to, buildInvitationEmail(input));
+}
+
+export async function sendProviderTicketEmail(
+  to: string,
+  input: Parameters<typeof buildProviderTicketEmail>[0],
+): Promise<SendEmailResult> {
+  return send(to, buildProviderTicketEmail(input));
+}
+
+export async function sendDeletionCompletedEmail(
+  to: string,
+  input: Parameters<typeof buildDeletionCompletedEmail>[0],
+): Promise<SendEmailResult> {
+  return send(to, buildDeletionCompletedEmail(input));
 }

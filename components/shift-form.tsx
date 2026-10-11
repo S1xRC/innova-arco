@@ -1,15 +1,20 @@
 "use client";
 
-import { Upload } from "lucide-react";
+import { CalendarPlus } from "lucide-react";
 import { useActionState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 
-import { createVideoMetadataAction } from "@/actions/provider";
+import { createShiftAction } from "@/actions/shifts";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { initialActionState } from "@/types/actions";
+
+export interface DriverOption {
+  userId: string;
+  label: string;
+}
 
 function FieldError({ message }: { message?: string }) {
   if (!message) {
@@ -19,17 +24,18 @@ function FieldError({ message }: { message?: string }) {
   return <p className="text-destructive text-xs">{message}</p>;
 }
 
-export function ProviderUploadForm({
+export function ShiftForm({
+  drivers,
   defaultDate,
   defaultTime,
 }: {
+  drivers: DriverOption[];
   defaultDate: string;
   defaultTime: string;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
-
   const [state, formAction, pending] = useActionState(
-    createVideoMetadataAction,
+    createShiftAction,
     initialActionState,
   );
 
@@ -46,8 +52,39 @@ export function ProviderUploadForm({
 
   const errors = state.fieldErrors ?? {};
 
+  if (drivers.length === 0) {
+    return (
+      <Alert>
+        <AlertDescription>
+          Invita y activa al menos un conductor antes de crear turnos.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
   return (
     <form ref={formRef} action={formAction} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="driverUserId">Conductor</Label>
+        <select
+          id="driverUserId"
+          name="driverUserId"
+          required
+          defaultValue=""
+          className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
+        >
+          <option value="" disabled>
+            Selecciona un conductor
+          </option>
+          {drivers.map((driver) => (
+            <option key={driver.userId} value={driver.userId}>
+              {driver.label}
+            </option>
+          ))}
+        </select>
+        <FieldError message={errors.driverUserId} />
+      </div>
+
       <div className="space-y-2">
         <Label htmlFor="licensePlate">Patente del camión</Label>
         <Input
@@ -63,44 +100,41 @@ export function ProviderUploadForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="recordedDate">Fecha</Label>
+          <Label htmlFor="shiftDate">Fecha del turno</Label>
           <Input
-            id="recordedDate"
-            name="recordedDate"
+            id="shiftDate"
+            name="shiftDate"
             type="date"
             defaultValue={defaultDate}
             required
-            aria-invalid={Boolean(errors.recordedDate)}
+            aria-invalid={Boolean(errors.shiftDate)}
           />
-          <FieldError message={errors.recordedDate} />
+          <FieldError message={errors.shiftDate} />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="recordedTime">Hora</Label>
+          <Label htmlFor="shiftTime">Hora de inicio</Label>
           <Input
-            id="recordedTime"
-            name="recordedTime"
+            id="shiftTime"
+            name="shiftTime"
             type="time"
             defaultValue={defaultTime}
             required
-            aria-invalid={Boolean(errors.recordedTime)}
+            aria-invalid={Boolean(errors.shiftTime)}
           />
-          <FieldError message={errors.recordedTime} />
+          <FieldError message={errors.shiftTime} />
         </div>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="driverEmail">Correo del conductor</Label>
+        <Label htmlFor="notes">Nota (opcional)</Label>
         <Input
-          id="driverEmail"
-          name="driverEmail"
-          type="email"
-          placeholder="conductor@correo.cl"
+          id="notes"
+          name="notes"
+          placeholder="Turno nocturno, ruta norte…"
           autoComplete="off"
-          required
-          aria-invalid={Boolean(errors.driverEmail)}
         />
-        <FieldError message={errors.driverEmail} />
+        <FieldError message={errors.notes} />
       </div>
 
       {state.status === "error" && state.message ? (
@@ -110,8 +144,8 @@ export function ProviderUploadForm({
       ) : null}
 
       <Button type="submit" disabled={pending}>
-        <Upload className="size-4" />
-        {pending ? "Guardando…" : "Subir metadatos"}
+        <CalendarPlus className="size-4" />
+        {pending ? "Guardando…" : "Crear turno"}
       </Button>
     </form>
   );

@@ -8,9 +8,9 @@ El sistema conecta a **tres actores**:
 
 | Rol | Qué hace |
 | --- | --- |
-| **Conductor (DRIVER)** | Ve todos los registros de video asociados a su correo (de cualquier proveedor) y solicita el borrado en un clic. |
-| **Proveedor de cámaras (PROVIDER)** | Sube metadatos de las grabaciones y resuelve los reclamos de borrado en su bandeja. |
-| **Empresa minera (MINING)** | Portal de auditoría de solo lectura para verificar que los proveedores respeten los derechos de sus trabajadores. |
+| **Empresa minera (MINING)** | Tenant central: invita a sus conductores y a las proveedoras de cámaras, define los turnos (patente + hora de inicio), sube las grabaciones con su información extra y configura el plazo de borrado. |
+| **Proveedor de cámaras (PROVIDER)** | Empresa contratada por la minera. Recibe en su panel una fila pidiendo eliminar de sus propios sistemas las grabaciones reclamadas, y declara el borrado. |
+| **Conductor (DRIVER)** | Puede pertenecer a varias mineras. Ve las grabaciones asignadas a sus turnos, solicita el borrado y ve si la proveedora confirmó el borrado. |
 
 ---
 
@@ -18,10 +18,10 @@ El sistema conecta a **tres actores**:
 
 - **Next.js 16** (App Router, Server Actions, Turbopack) + **TypeScript 5.9**
 - **React 19** · **Tailwind CSS v4** · **shadcn/ui** (Radix UI)
-- **Supabase** (PostgreSQL + Auth con Google OAuth + Row Level Security)
-- **Resend** (notificaciones por correo)
+- **Supabase** (PostgreSQL + Auth con Google OAuth + Row Level Security + **Storage**)
+- **Resend** (notificaciones por correo — **opcional**, la app funciona sin él)
 - **Zod** (validación) · **next-themes** (modo claro/oscuro) · **sonner** (toasts)
-- Despliegue: **Vercel** (app) + **Supabase** (base de datos)
+- Despliegue: **Vercel** (app + cron) + **Supabase** (base de datos, auth y storage). **No requiere dominio propio.**
 
 > Nota: en Next.js 16 el archivo `middleware.ts` se renombró a **`proxy.ts`**
 > (función `proxy()`, runtime Node.js). Este proyecto ya usa la convención nueva.
@@ -68,11 +68,14 @@ cp .env.example .env.local
 | `NEXT_PUBLIC_SUPABASE_URL` | ✅ | Project URL de Supabase (`Settings → Data API`). |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | Clave pública `anon` / `publishable`. **Segura para el navegador.** |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | ➖ | Alias opcional: si no defines la anterior, se lee esta. |
-| `SUPABASE_SERVICE_ROLE_KEY` | ➖ | Clave `service_role`. **Solo servidor.** Para scripts administrativos. |
+| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Clave `service_role`. **Solo servidor.** Necesaria para el almacenamiento (subida/borrado en Storage) y el cron de borrado. |
 | `NEXT_PUBLIC_SITE_URL` | ✅ | URL base pública (`http://localhost:3000` en local). Se usa para los enlaces de los correos y el `redirectTo` de OAuth. |
-| `RESEND_API_KEY` | ✅ | API key de Resend. Si falta, la app funciona pero no envía correos (queda registrado en logs). |
-| `RESEND_FROM_EMAIL` | ➖ | Remitente. Requiere dominio verificado en Resend. Para pruebas: `"Innova ARCO <onboarding@resend.dev>"`. |
-| `NOTIFY_WEBHOOK_SECRET` | ➖ | Secreto compartido que protege `POST /api/notify-provider`. Si se define, el header `x-webhook-secret` es obligatorio. |
+| `RESEND_API_KEY` | ➖ | **Opcional.** API key de Resend. Si falta, la app funciona igual: no se envían correos y las invitaciones/reclamos se gestionan dentro de la app. |
+| `RESEND_FROM_EMAIL` | ➖ | **Opcional.** Remitente. Requiere dominio verificado en Resend (no necesitas dominio propio). Para pruebas: `"Innova ARCO <onboarding@resend.dev>"`. |
+| `STORAGE_DRIVER` | ➖ | Driver de almacenamiento de video. Por defecto `supabase`. |
+| `STORAGE_BUCKET` | ➖ | Bucket privado de Supabase Storage. Por defecto `recordings`. |
+| `CRON_SECRET` | ➖ | Secreto que protege `GET /api/cron/process-deletions` (lo envía Vercel Cron como `Authorization: Bearer …`). |
+| `NOTIFY_WEBHOOK_SECRET` | ➖ | *(legado)* Secreto del webhook de notificación. Ya no es necesario. |
 
 > El código acepta tanto el nombre histórico (`..._ANON_KEY`) como el nuevo
 > (`..._PUBLISHABLE_KEY`) para la clave pública.
@@ -94,10 +97,15 @@ Cada archivo es idempotente, así que puedes volver a ejecutarlos sin romper nad
 
 | Archivo | Contenido |
 | --- | --- |
-| `0001_schema.sql` | Enums (`company_type`, `user_role`, `deletion_status`), tablas e índices. |
-| `0002_functions.sql` | Funciones `SECURITY DEFINER` que evitan la recursión de RLS. |
-| `0003_policies.sql` | Políticas de Row Level Security para los tres roles. |
-| `0004_triggers.sql` | Provisionamiento de usuarios, `resolved_at` automático y guardas de perfil. |
+| `0001_schema.sql` | Enums, tablas e índices base (`companies`, `users`, `video_metadata`, `deletion_requests`, `user_invites`). |
+| `0002_functions.sql` | Funciones `SECURITY DEFINER` iniciales. |
+| `0003_policies.sql` | Políticas de Row Level Security iniciales. |
+| `0004_triggers.sql` | Provisionamiento de usuarios y guardas iniciales. |
+| `0005_schema_evolution.sql` | **Modelo multi-tenant**: `memberships`, `company_relations`, `shifts`; `companies.deletion_grace_days`; nuevas columnas en `video_metadata`/`deletion_requests`; migra `users.company_id` → `memberships` y lo elimina. |
+| `0006_functions.sql` | Helpers de membresías/relaciones, *matching* de turnos, `create_company` y `process_due_deletions`. |
+| `0007_policies.sql` | RLS multi-tenant para las tres roles. |
+| `0008_triggers.sql` | `handle_new_user` con invitaciones, *matching* automático video↔turno y ciclo de los reclamos. |
+| `0009_deletion_cron.sql` | Crea el bucket privado `recordings` y programa el borrado diario con `pg_cron`. |
 
 **Opción A — SQL Editor (sin instalar nada)**
 
@@ -133,16 +141,34 @@ on conflict (email) do update set role = excluded.role, company_id = excluded.co
 ### 3.4 Modelo de datos
 
 ```
-companies ──┬──< users            (company_id, NULL para conductores sin onboarding)
-            └──< video_metadata   (provider_id)
-                     │
-users ─────────────< deletion_requests >─── video_metadata
-user_invites  (email → role + company, solo service_role)
+companies ──┬──< memberships >─── users        (N:M: conductor ↔ mineras, staff, …)
+            ├──< company_relations             (minera invita a la proveedora)
+            ├──< shifts                        (turnos: patente + hora de inicio)
+            └──< video_metadata                (sube la minera; archivo en Storage)
+                     │   ▲  matching patente + hora
+                     ▼   │
+                  shifts ─┘
+video_metadata ──< deletion_requests >── users  (reclamo ARCO del conductor)
+user_invites  (email → role, bootstrap solo service_role)
 ```
+
+- `users.role` es el rol activo; se puede cambiar libremente entre los roles de
+  las membresías del usuario (o desde el panel de administración).
+- `users.active_company_id` es la empresa activa (entre sus membresías).
+- `video_metadata.extra_info` (jsonb) es el «campo con información extra» que se
+  borra junto con la grabación.
+- `deletion_requests.provider_declared_at` es el campo que el conductor ve para
+  saber si la proveedora declaró el borrado en sus sistemas.
 
 ---
 
 ## 4. Configurar Google OAuth
+
+> 💡 **No necesitas un dominio comprado.** Google solo exige registrar el
+> *callback* de Supabase (`https://<ref>.supabase.co/auth/v1/callback`) y la app
+> funciona en `http://localhost:3000` y en el dominio por defecto de Vercel
+> (`https://<proyecto>.vercel.app`). Mientras el *OAuth consent screen* esté en
+> modo **Testing**, agrega tus correos en **Test users**.
 
 ### 4.1 Google Cloud Console
 
@@ -182,44 +208,67 @@ https://<tu-project-ref>.supabase.co/auth/v1/callback
 
 ### 4.3 Cómo se captura el rol
 
-Al primer inicio de sesión, el trigger `handle_new_user` (migración `0004`):
+Al primer inicio de sesión, el trigger `handle_new_user` (migración `0008`):
 
-1. Busca el email en `user_invites`.
-2. Si existe → asigna ese `role` y `company_id` (PROVIDER / MINING).
-3. Si no existe → crea el usuario como `DRIVER` con `company_id = NULL`, lo que
-   dispara el **onboarding** para elegir su empresa minera.
+1. Busca invitaciones pendientes en `memberships` por el correo del usuario.
+2. Si existe → asigna ese `role` y fija la empresa activa, activando además
+   todas las membresías de ese correo.
+3. Si no existe → busca en `user_invites` (bootstrap) y, si tampoco, crea al
+   usuario como `DRIVER`. Sin empresa activa cae en el **onboarding**
+   (`/onboarding`), donde puede aceptar invitaciones o registrar su empresa.
+
+**Asignación libre de roles**
+
+- Un usuario puede cambiar de rol entre las membresías activas que tenga
+  (selector de empresa/rol en la cabecera).
+- Un *platform admin* puede asignar cualquier rol desde `/admin`.
+
+Para nombrar al primer administrador de la plataforma:
+
+```sql
+update public.users set is_platform_admin = true where email = 'tu-correo@gmail.com';
+```
 
 ---
 
-## 5. Configurar Resend (correos)
+## 5. Correos (Resend) — OPCIONAL
+
+**Puedes desplegar sin configurar Resend.** Si `RESEND_API_KEY` no está definida:
+
+- Las invitaciones se aceptan **dentro de la app**: al iniciar sesión con el
+  correo invitado, el usuario ve la invitación en `/onboarding`.
+- Los reclamos y tickets aparecen en el panel de cada rol.
+- No se envía ningún correo (los envíos son *best-effort* y quedan en logs `[ARCO]`).
+
+Si quieres activar los correos:
 
 1. Crea una API key en [resend.com/api-keys](https://resend.com/api-keys) y
    guárdala en `RESEND_API_KEY`.
-2. Verifica un dominio en **Domains** y usa una dirección de ese dominio en
-   `RESEND_FROM_EMAIL`.
-   - Para pruebas rápidas puedes usar
-     `RESEND_FROM_EMAIL="Innova ARCO <onboarding@resend.dev>"` (Resend solo
-     permite enviar a tu propio correo con ese remitente).
+2. Usa `RESEND_FROM_EMAIL="Innova ARCO <onboarding@resend.dev>"` para pruebas
+   (**no requiere dominio propio**; con ese remitente Resend solo envía a tu
+   propio correo), o verifica un dominio en **Domains** para producción.
 
-Cuando un conductor solicita el borrado:
+---
 
-1. Se inserta la fila en `deletion_requests` (estado `PENDING`).
-2. Se envía un correo HTML al `support_email` del proveedor.
-3. El correo es **best-effort**: si Resend falla, la solicitud igual se guarda
-   (el error queda en `console.error` con el prefijo `[ARCO]`).
+## 5.bis Cron de borrado automático
 
-### Endpoint alternativo / webhook
+El borrado vencido se ejecuta por dos vías complementarias:
 
+1. **`pg_cron` en Supabase** (migración `0009`): job diario que llama a
+   `public.process_due_deletions()`. No requiere configuración si `pg_cron`
+   está disponible.
+2. **Vercel Cron** → `GET /api/cron/process-deletions` (protegido por
+   `CRON_SECRET`, se manda como `Authorization: Bearer …`). Además elimina el
+   **archivo físico** de Supabase Storage.
+
+`vercel.json` de ejemplo:
+
+```json
+{ "crons": [{ "path": "/api/cron/process-deletions", "schedule": "0 3 * * *" }] }
 ```
-POST /api/notify-provider
-Headers: { "x-webhook-secret": "<NOTIFY_WEBHOOK_SECRET>", "Content-Type": "application/json" }
-Body:    { "requestId": "<uuid>" }        // o el payload de Supabase: { "record": { "id": "<uuid>" } }
-```
 
-Útil para conectar un **Database Webhook** de Supabase sobre el `INSERT` de
-`deletion_requests` (`Dashboard → Database → Webhooks`). El endpoint devuelve
-`200` si el correo se envió, `502` si falló el envío y `401`/`404`/`422` para
-errores de autorización o datos.
+> Si no configuras ninguno, la minera puede forzar el borrado manualmente con el
+> botón **Eliminar ahora** en `/mining/videos` y desde `/admin`.
 
 ---
 
@@ -233,11 +282,13 @@ Abre <http://localhost:3000> e inicia sesión con Google.
 
 **Enrutamiento por rol:** `/dashboard` redirige a cada usuario a su panel:
 
-| Rol | Ruta |
+| Rol | Rutas |
 | --- | --- |
-| DRIVER | `/driver` (si aún no tiene empresa → `/onboarding`) |
-| PROVIDER | `/provider` · `/provider/upload` · `/provider/claims` |
-| MINING | `/mining` |
+| Sin empresa activa | `/onboarding` (aceptar invitación o registrar empresa) |
+| DRIVER | `/driver` |
+| PROVIDER | `/provider` · `/provider/deletions` · `/provider/relations` |
+| MINING | `/mining` · `/mining/shifts` · `/mining/videos` · `/mining/members` · `/mining/providers` · `/mining/claims` · `/mining/settings` |
+| Cualquiera (con sesión) | `/invitations` (aceptar invitaciones nuevas) · `/admin` (solo platform admin) |
 
 ---
 
@@ -249,14 +300,15 @@ Innova/
 │  ├─ layout.tsx                  # ThemeProvider + Toaster + globals.css
 │  ├─ page.tsx                    # landing pública
 │  ├─ login/page.tsx              # inicio de sesión con Google
-│  ├─ onboarding/page.tsx         # conductor elige empresa minera
+│  ├─ onboarding/page.tsx         # aceptar invitaciones / registrar empresa
 │  ├─ dashboard/page.tsx          # router por rol
-│  ├─ driver/                     # tabla de registros + solicitar borrado
-│  ├─ provider/                   # resumen · upload · claims (bandeja)
-│  ├─ mining/                     # portal de auditoría (solo lectura)
+│  ├─ driver/                     # grabaciones asignadas + solicitar borrado
+│  ├─ mining/                     # resumen · shifts · videos · members · providers · claims · settings
+│  ├─ provider/                   # resumen · deletions (tickets) · relations
+│  ├─ admin/                      # platform admin: asignación libre de roles
 │  ├─ auth/callback/route.ts      # intercambio code → session (PKCE)
-│  └─ api/notify-provider/route.ts# envío de correo vía Resend
-├─ actions/                       # Server Actions (auth, onboarding, driver, provider)
+│  └─ api/cron/process-deletions/route.ts  # borrado automático vencido
+├─ actions/                       # Server Actions (auth, invitations, roles, shifts, videos, deletions, company)
 ├─ components/
 │  ├─ ui/                         # primitivas shadcn/ui (Tailwind v4)
 │  └─ *.tsx                       # tablas, formularios y botones de cada rol
@@ -280,10 +332,17 @@ Todas las escrituras pasan por Server Actions con validación Zod y `useActionSt
 | Acción | Archivo | Quién |
 | --- | --- | --- |
 | `signInWithGoogleAction` / `signOutAction` | `actions/auth.ts` | público |
-| `selectMiningCompanyAction` | `actions/onboarding.ts` | DRIVER (una vez) |
-| `requestDeletionAction` | `actions/driver.ts` | DRIVER |
-| `createVideoMetadataAction` | `actions/provider.ts` | PROVIDER |
-| `resolveDeletionRequestAction` | `actions/provider.ts` | PROVIDER |
+| `createCompanyAction` | `actions/onboarding.ts` | cualquiera |
+| `inviteDriverAction` / `inviteProviderAction` | `actions/invitations.ts` | MINING |
+| `acceptInvitationAction` / `declineInvitationAction` / `acceptRelationAction` | `actions/invitations.ts` | invitado / PROVIDER |
+| `revokeMembershipAction` | `actions/invitations.ts` | MINING |
+| `setActiveCompanyAction` / `updateUserRoleAction` / `adminSetRoleAction` | `actions/roles.ts` | autenticado / admin |
+| `createShiftAction` / `deleteShiftAction` | `actions/shifts.ts` | MINING |
+| `createUploadUrlAction` / `createVideoMetadataAction` / `deleteRecordingNowAction` | `actions/videos.ts` | MINING |
+| `requestDeletionAction` / `cancelDeletionRequestAction` | `actions/deletions.ts` | DRIVER |
+| `declareProviderDeletionAction` | `actions/deletions.ts` | PROVIDER |
+| `processDueDeletionsAction` | `actions/deletions.ts` | admin |
+| `updateCompanySettingsAction` | `actions/company.ts` | MINING |
 
 ---
 
@@ -291,46 +350,89 @@ Todas las escrituras pasan por Server Actions con validación Zod y `useActionSt
 
 Todas las tablas tienen RLS activado. Las políticas usan funciones
 `SECURITY DEFINER` (`public.current_user_role()`, `public.current_company_id()`,
-`public.is_provider_of_video()`, …) para leer `public.users` sin provocar el
-clásico error *“infinite recursion detected in policy for relation users”*.
+`public.is_member_of()`, `public.driver_can_view_video()`, …) para leer
+`public.users`/`public.memberships` sin provocar el clásico error
+*“infinite recursion detected in policy for relation users”*.
 
 | Tabla | DRIVER | PROVIDER | MINING |
 | --- | --- | --- | --- |
-| `companies` | Solo `type = 'MINING'` (para el desplegable) + los proveedores que tienen sus videos | Su propia empresa | Su propia empresa |
-| `users` | Solo su propia fila (`id = auth.uid()`) | Solo su propia fila | Solo su propia fila |
-| `video_metadata` | `lower(driver_email) = lower(auth.jwt()->>'email')` | `provider_id = company_id` (lectura + **insert**) | Solo videos con una solicitud de un conductor de su empresa |
-| `deletion_requests` | `driver_id = auth.uid()` (lectura + **insert**) | Solicitudes de sus videos (lectura + **update** a `DELETED`) | Solicitudes de conductores de su empresa (solo lectura) |
+| `companies` | Lee las mineras/proveedoras visibles | Su empresa + mineras | Su empresa + proveedoras |
+| `users` | Su propia fila | Su fila + conductores de sus tickets | Su fila + sus conductores |
+| `memberships` | Sus filas / invitaciones a su correo | Filas de su empresa | Filas de su empresa (CRUD) |
+| `company_relations` | — | Donde es `provider_id` | Sus relaciones (CRUD) |
+| `shifts` | Donde `driver_user_id = auth.uid()` | Vía relaciones | CRUD de su empresa |
+| `video_metadata` | Asignados vía `shifts.matched_video_id` | Donde `provider_id = empresa` | CRUD de su empresa |
+| `deletion_requests` | `driver_id = auth.uid()` (+ insert si está asignado) | Lectura + **update** solo de `provider_declared_*` | Lectura + update |
 | `user_invites` | — | — | — (RLS sin políticas: solo `service_role`) |
 
-Guardas adicionales (migración `0004`):
+Guardas y automatismos:
 
-- `users.role` **no puede** modificarse desde la aplicación.
-- `users.company_id` solo puede asignarse **una vez** (onboarding del conductor).
-- `deletion_requests.resolved_at` se rellena automáticamente al pasar a `DELETED`.
+- `users.role` y `users.active_company_id` son **libres**; solo `is_platform_admin`
+  queda controlado por el servidor.
+- `video_metadata` **BEFORE INSERT**: *matching* patente + hora (±5 min) → fija
+  `shift_id`; luego el turno guarda `matched_video_id`.
+- `deletion_requests` **BEFORE INSERT**: calcula `scheduled_deletion_at` según
+  `companies.deletion_grace_days` y copia `provider_id`/`shift_id`.
+- Una **proveedora** solo puede modificar `provider_declared_at`, `provider_declared_by`
+  y `provider_note` (el resto lo conserva el trigger).
 - `deletion_requests` tiene `UNIQUE(video_id)`: un video no puede tener dos reclamos.
 
-> Para cambiar un rol manualmente:
+> Para nombrar un administrador de plataforma:
 > ```sql
-> alter table public.users disable trigger users_profile_guards;
-> update public.users set role = 'PROVIDER', company_id = '<uuid>' where email = '...';
-> alter table public.users enable trigger users_profile_guards;
+> update public.users set is_platform_admin = true where email = '...';
 > ```
+
+---
+
+## 8.bis Flujo de borrado y almacenamiento de video
+
+**Almacenamiento:** las grabaciones (archivo + metadata) las sube la empresa
+minera. El archivo va a un bucket **privado** de Supabase Storage (`recordings`)
+mediante una *signed upload URL* (subida directa desde el navegador, evitando el
+límite de tamaño de Vercel). La `storage_path` se guarda en
+`video_metadata` y todas las lecturas/borrados se hacen en el servidor con
+`service_role` (`lib/storage.ts`).
+
+**Flujo del reclamo:**
+
+1. El conductor pulsa **Solicitar borrado** sobre una grabación asignada a su
+   turno → se crea `deletion_requests` (PENDING) y el trigger fija
+   `scheduled_deletion_at = now() + companies.deletion_grace_days`.
+2. La **proveedora** ve una fila en `/provider/deletions` para eliminar la
+   grabación de sus propios sistemas y puede **declarar** el borrado
+   (`provider_declared_at`).
+3. Al cumplirse el plazo, el job (`pg_cron` y/o `/api/cron/process-deletions`)
+   **elimina el archivo**, purga `extra_info` y el correo del conductor, y marca
+   `shifts.video_deleted_at` («se eliminó la grabación» en el turno de esa fecha).
+4. El conductor ve el estado y el campo «Proveedora declaró».
+
+> **Modo demo:** en `/mining/settings` la minera puede fijar `deletion_grace_days = 0`
+> (Instantáneo) para que el borrado ocurra en el momento.
 
 ---
 
 ## 9. Despliegue en Vercel
 
-1. Sube el repositorio a GitHub.
-2. En [vercel.com](https://vercel.com) → **Add New → Project** → importa el repo.
-3. Añade las variables de entorno del apartado 2 en
-   **Settings → Environment Variables** (usa la URL real en `NEXT_PUBLIC_SITE_URL`).
-4. Deploy.
-5. En **Supabase → Authentication → URL Configuration**, agrega el dominio de
+1. En Supabase, ejecuta **todas** las migraciones (`0001`…`0009`) en el SQL Editor.
+   La `0009` crea el bucket privado `recordings` y el job de borrado.
+2. Sube el repositorio a GitHub.
+3. En [vercel.com](https://vercel.com) → **Add New → Project** → importa el repo.
+   Puedes usar el **dominio por defecto de Vercel** (no necesitas dominio propio).
+4. Añade las variables de entorno del apartado 2 en
+   **Settings → Environment Variables** (usa la URL de Vercel en
+   `NEXT_PUBLIC_SITE_URL`). `RESEND_*` es opcional.
+5. Deploy.
+6. En **Supabase → Authentication → URL Configuration**, agrega el dominio de
    Vercel a **Site URL** y **Redirect URLs** (aquí **sí** van las URLs de tu app).
-6. **Google Cloud no requiere cambios**: el *Authorized redirect URI* sigue
+7. **Google Cloud no requiere cambios**: el *Authorized redirect URI* sigue
    siendo el de Supabase (`https://<tu-project-ref>.supabase.co/auth/v1/callback`).
-7. Si cambiaste `NEXT_PUBLIC_SITE_URL`, **vuelve a desplegar**: esa variable se
+8. *(Opcional)* Configura Vercel Cron apuntando a `/api/cron/process-deletions`
+   (ver §5.bis) — recuerda `CRON_SECRET`.
+9. Si cambiaste `NEXT_PUBLIC_SITE_URL`, **vuelve a desplegar**: esa variable se
    incrusta en el bundle durante el build.
+
+> ✅ **Se puede desplegar sin Resend y sin dominio comprado**: los correos son
+> opcionales y las invitaciones se aceptan dentro de la app.
 
 > Atajo: revisa [`DEPLOY.md`](./DEPLOY.md) para el checklist completo y la
 > solución a los problemas de autenticación con GitHub.
@@ -339,49 +441,55 @@ Guardas adicionales (migración `0004`):
 
 ## 10. Checklist de pruebas
 
-Con el seed cargado y tres cuentas de Google (una por rol):
-
-**Conductor**
-- [ ] Al entrar por primera vez, aparece `/onboarding` y puedo elegir una minera.
-- [ ] Veo solo los videos asociados a mi correo, de **ambos** proveedores.
-- [ ] Al pulsar **Solicitar borrado**, la fila pasa a *Solicitud pendiente* y el
-      botón desaparece.
-- [ ] Volver a solicitar el mismo video muestra *“Ya existe una solicitud…”*.
-
-**Proveedor**
-- [ ] El formulario de `/provider/upload` crea un registro visible para el conductor.
-- [ ] El proveedor **A** no ve en `/provider/claims` reclamos de videos del proveedor **B**.
-- [ ] Al marcar *Marcar como eliminado*, el estado pasa a `DELETED`.
-- [ ] Con `RESEND_API_KEY` configurada, llega el correo al `support_email`.
+Con la app desplegada y tres cuentas de Google (una por rol):
 
 **Empresa minera**
-- [ ] `/mining` muestra solo solicitudes de conductores que declararon su empresa.
-- [ ] El estado Pendiente/Resuelto y el % de cumplimiento se actualizan.
-- [ ] No existe ningún botón de escritura (portal de solo lectura).
+- [ ] Invito una proveedora en `/mining/providers`; al entrar con su correo ve la
+      relación en `/provider/relations` y puede aceptarla.
+- [ ] Invito un conductor en `/mining/members`; al entrar con su correo acepta la
+      invitación en `/onboarding` y aparece como *Activo*.
+- [ ] Creo un turno en `/mining/shifts` (conductor + patente + hora de inicio).
+- [ ] Subo una grabación en `/mining/videos` con la misma patente y hora: queda
+      como *Grabación asignada* en el turno.
+- [ ] En `/mining/settings` pongo **Instantáneo (demo)** y el borrado se ejecuta al
+      instante; con **30 días** queda programado.
+
+**Conductor**
+- [ ] En `/driver` veo las grabaciones asignadas a mis turnos.
+- [ ] Al pulsar **Solicitar borrado** aparece la fecha de borrado y el estado.
+- [ ] Tras el borrado, veo *Eliminado* y si la proveedora declaró el borrado.
+
+**Proveedora**
+- [ ] En `/provider/deletions` veo el ticket y puedo **Declarar borrado**.
+- [ ] No veo tickets de otras proveedoras.
 
 **General**
-- [ ] `/driver`, `/provider` y `/mining` redirigen a `/login` sin sesión.
-- [ ] Un proveedor que entra a `/driver` es redirigido a `/provider`.
+- [ ] `/driver`, `/provider`, `/mining` y `/admin` redirigen a `/login` sin sesión.
+- [ ] Un rol que entra a la sección de otro rol es redirigido a su panel.
+- [ ] El selector de empresa cambia entre las empresas a las que pertenezco.
 - [ ] El toggle de tema alterna claro/oscuro y persiste al recargar.
 
 ---
 
 ## 11. Notas y limitaciones del MVP
 
-- **Borrado lógico:** marcar como `DELETED` cambia el estado, no elimina el
-  registro físico. Para un borrado real, añade una política `DELETE` para el
-  proveedor y elimina la fila de `video_metadata`.
+- **Borrado real:** al cumplirse el plazo se elimina el **archivo físico** de
+  Supabase Storage, se purga `extra_info`, se borra el correo del conductor en
+  `video_metadata` y se marca `shifts.video_deleted_at`. La fila de metadata
+  queda como registro de auditoría (sin datos personales).
 - **Zona horaria:** las fechas se interpretan y muestran en
   `America/Santiago` (`lib/format.ts`). Si el negocio opera en otra zona,
   cambia `APP_TIME_ZONE`.
-- **Provisionamiento de roles:** manejado por `user_invites` (opción elegida).
-  Los usuarios no pueden auto-asignarse rol `PROVIDER` / `MINING`.
+- **Roles:** se asignan por invitación y son libres; un *platform admin* puede
+  asignar cualquiera desde `/admin`.
 - **Ingesta de video:** manual por ahora; el formulario simula la futura API de
-  las cámaras.
-- **Notificaciones:** el correo es best-effort (no bloquea la solicitud). Si
-  Resend falla, el reclamo igual llega a la bandeja y el error queda en logs.
-- **Verificación aplicada:** `npm run typecheck` ✅ · `npm run lint` ✅ (0 errores)
-  · `npm run build` ✅ · smoke test del servidor de desarrollo ✅.
+  las cámaras. El *matching* con el turno usa patente + hora (±5 min).
+- **Correo opcional:** sin `RESEND_API_KEY` no se envían correos; todo el flujo
+  funciona dentro de la app.
+- **Sin dominio:** Google OAuth y Supabase funcionan con `localhost` y el dominio
+  por defecto de Vercel.
+- **Verificación aplicada:** `npm run typecheck` ✅ · `npm run lint` ✅ (0 avisos)
+  · `npm run build` ✅ (19 rutas).
 
 
 
