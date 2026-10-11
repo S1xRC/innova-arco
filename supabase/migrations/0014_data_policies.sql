@@ -30,6 +30,14 @@ as $$
         and m.user_id = auth.uid()
         and m.status = 'ACTIVE'
         and m.role <> 'DRIVER'
+    )
+    -- Fallback for accounts provisioned only through `user_invites`.
+    or exists (
+      select 1
+      from public.users u
+      where u.id = auth.uid()
+        and u.active_company_id = p_company_id
+        and u.role <> 'DRIVER'
     );
 $$;
 
@@ -44,6 +52,12 @@ as $$
   select public.current_is_admin()
     or public.is_member_of(p_company_id)
     or public.driver_can_view_company(p_company_id)
+    or exists (
+      select 1
+      from public.users u
+      where u.id = auth.uid()
+        and u.active_company_id = p_company_id
+    )
     or exists (
       select 1
       from public.company_relations r
