@@ -8,10 +8,10 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { MiningVideosTable } from "@/components/mining-videos-table";
-import { VideoUploadForm, type ProviderOption } from "@/components/video-upload-form";
+import { VideoUploadForm, type ProviderOption, type ShiftOption } from "@/components/video-upload-form";
 import { requireCompany } from "@/lib/auth";
 import { resolveMaxUploadMb } from "@/lib/constants";
-import { toDateInputValue, toTimeInputValue } from "@/lib/format";
+import { formatDateTime, toDateInputValue, toTimeInputValue } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import type { MiningVideoRow } from "@/types";
 
@@ -77,12 +77,27 @@ export default async function MiningVideosPage() {
         .in("id", shiftIds)
     : { data: [] };
 
+  // Shifts of this company that still have no recording (manual assignment).
+  const { data: availableShifts } = await supabase
+    .from("shifts")
+    .select("id, license_plate, starts_at, driver_user_id")
+    .eq("mining_id", profile.companyId)
+    .is("matched_video_id", null)
+    .is("video_deleted_at", null)
+    .order("starts_at", { ascending: false });
+
   const driverIds = [
-    ...new Set((shifts ?? []).map((shift) => shift.driver_user_id)),
+    ...new Set([
+      ...(shifts ?? []).map((shift) => shift.driver_user_id),
+      ...(availableShifts ?? []).map((shift) => shift.driver_user_id),
+    ]),
   ];
 
   const { data: driverUsers } = driverIds.length
-    ? await supabase.from("users").select("id, email").in("id", driverIds)
+    ? await supabase
+        .from("users")
+        .select("id, email, full_name")
+        .in("id", driverIds)
     : { data: [] };
 
   const usersById = new Map(
@@ -94,6 +109,20 @@ export default async function MiningVideosPage() {
       usersById.get(shift.driver_user_id)?.email ?? null,
     ]),
   );
+
+  const shiftOptions: ShiftOption[] = (availableShifts ?? []).map((shift) => {
+    const driver = usersById.get(shift.driver_user_id);
+    const driverLabel = driver?.full_name ?? driver?.email ?? "";
+
+    return {
+      id: shift.id,
+      licensePlate: shift.license_plate,
+      startsAt: shift.starts_at,
+      label: [shift.license_plate, formatDateTime(shift.starts_at), driverLabel]
+        .filter(Boolean)
+        .join(" · "),
+    };
+  });
 
   const rows: MiningVideoRow[] = (videos ?? []).map((video) => ({
     id: video.id,
@@ -137,6 +166,7 @@ export default async function MiningVideosPage() {
           <CardContent>
             <VideoUploadForm
               providers={providers}
+              shifts={shiftOptions}
               defaultDate={toDateInputValue(now)}
               defaultTime={toTimeInputValue(now)}
               maxUploadMb={resolveMaxUploadMb()}

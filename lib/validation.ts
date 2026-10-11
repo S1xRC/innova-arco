@@ -51,6 +51,7 @@ export const createVideoMetadataSchema = z.object({
   recordedDate: dateSchema,
   recordedTime: timeSchema,
   providerId: optionalIdSchema,
+  shiftId: optionalIdSchema,
   extraInfo: z
     .string()
     .trim()

@@ -108,6 +108,7 @@ Cada archivo es idempotente, así que puedes volver a ejecutarlos sin romper nad
 | `0009_deletion_cron.sql` | Crea el bucket privado `recordings` y programa el borrado diario con `pg_cron`. |
 | `0010_storage_limits.sql` | Fija el límite de tamaño del bucket `recordings` (50 MB). |
 | `0011_recording_access_log.sql` | Bitácora inmutable de accesos a grabaciones (ARCO «acceso»). |
+| `0012_explicit_shift_assignment.sql` | Asignación **manual** de la grabación al turno: elimina el *matching* automático por patente + hora y añade `UNIQUE(shift_id)`. |
 
 **Opción A — SQL Editor (sin instalar nada)**
 
@@ -147,7 +148,7 @@ companies ──┬──< memberships >─── users        (N:M: conductor �
             ├──< company_relations             (minera invita a la proveedora)
             ├──< shifts                        (turnos: patente + hora de inicio)
             └──< video_metadata                (sube la minera; archivo en Storage)
-                     │   ▲  matching patente + hora
+                     │   ▲  asignación manual (turno elegido en el formulario)
                      ▼   │
                   shifts ─┘
 video_metadata ──< deletion_requests >── users  (reclamo ARCO del conductor)
@@ -373,8 +374,11 @@ Guardas y automatismos:
 
 - `users.role` y `users.active_company_id` son **libres**; solo `is_platform_admin`
   queda controlado por el servidor.
-- `video_metadata` **BEFORE INSERT**: *matching* patente + hora (±5 min) → fija
-  `shift_id`; luego el turno guarda `matched_video_id`.
+- `video_metadata.shift_id` se fija **manualmente** en el formulario (la minera
+  elige un **turno libre**, es decir con `matched_video_id is null`).
+  `link_video_shift` copia el id al turno (`shifts.matched_video_id`) y un
+  `UNIQUE(shift_id)` garantiza **1 grabación por turno**. Ya no existe *matching*
+  automático por patente + hora.
 - `deletion_requests` **BEFORE INSERT**: calcula `scheduled_deletion_at` según
   `companies.deletion_grace_days` y copia `provider_id`/`shift_id`.
 - Una **proveedora** solo puede modificar `provider_declared_at`, `provider_declared_by`
@@ -497,8 +501,9 @@ Con la app desplegada y tres cuentas de Google (una por rol):
 - [ ] Invito un conductor en `/mining/members`; al entrar con su correo acepta la
       invitación en `/onboarding` y aparece como *Activo*.
 - [ ] Creo un turno en `/mining/shifts` (conductor + patente + hora de inicio).
-- [ ] Subo una grabación en `/mining/videos` con la misma patente y hora: queda
-      como *Grabación asignada* en el turno.
+- [ ] Subo una grabación en `/mining/videos` eligiendo un **turno libre** en el
+      formulario: el turno pasa a *Grabación asignada* (ya no hay *matching*
+      automático por patente + hora).
 - [ ] En `/mining/settings` pongo **Instantáneo (demo)** y el borrado se ejecuta al
       instante; con **30 días** queda programado.
 - [ ] En `/mining/videos` reproduzco una grabación con **Ver** y el acceso aparece
@@ -534,7 +539,8 @@ Con la app desplegada y tres cuentas de Google (una por rol):
 - **Roles:** se asignan por invitación y son libres; un *platform admin* puede
   asignar cualquiera desde `/admin`.
 - **Ingesta de video:** manual por ahora; el formulario simula la futura API de
-  las cámaras. El *matching* con el turno usa patente + hora (±5 min).
+  las cámaras. El turno se **selecciona manualmente** entre los que no tienen
+  grabación asignada (no hay *matching* automático por patente + hora).
 - **Correo opcional:** sin `RESEND_API_KEY` no se envían correos; todo el flujo
   funciona dentro de la app.
 - **Sin dominio:** Google OAuth y Supabase funcionan con `localhost` y el dominio

@@ -15,6 +15,8 @@ import {
 import type { ActionState } from "@/types/actions";
 import type { Json } from "@/types/database";
 
+const UNIQUE_VIOLATION = "23505";
+
 /**
  * Creates a signed upload URL so the browser uploads the file straight to
  * Supabase Storage (avoids the serverless body-size limit).
@@ -96,6 +98,7 @@ export async function createVideoMetadataAction(
     recordedDate: String(formData.get("recordedDate") ?? ""),
     recordedTime: String(formData.get("recordedTime") ?? ""),
     providerId: String(formData.get("providerId") ?? ""),
+    shiftId: String(formData.get("shiftId") ?? ""),
     extraInfo: String(formData.get("extraInfo") ?? ""),
     storagePath: String(formData.get("storagePath") ?? ""),
     storageSize: String(formData.get("storageSize") ?? ""),
@@ -127,6 +130,31 @@ export async function createVideoMetadataAction(
       ? parsed.data.storageSize
       : null;
   const storageMime = parsed.data.storageMime || null;
+  const shiftId = parsed.data.shiftId || null;
+
+  // The shift is picked manually in the form: it must belong to this mining
+  // company and still be free (no recording assigned).
+  if (shiftId) {
+    const { data: shift } = await supabase
+      .from("shifts")
+      .select("id, mining_id, matched_video_id")
+      .eq("id", shiftId)
+      .maybeSingle();
+
+    if (!shift || shift.mining_id !== profile.companyId) {
+      return {
+        status: "error",
+        message: "El turno seleccionado no es válido.",
+      };
+    }
+
+    if (shift.matched_video_id) {
+      return {
+        status: "error",
+        message: "Ese turno ya tiene una grabación asignada.",
+      };
+    }
+  }
 
   const { error } = await supabase.from("video_metadata").insert({
     mining_id: profile.companyId,
@@ -138,6 +166,7 @@ export async function createVideoMetadataAction(
     storage_path: storagePath,
     storage_size: storageSize,
     storage_mime: storageMime,
+    shift_id: shiftId,
     created_by: profile.id,
   });
 
@@ -149,6 +178,13 @@ export async function createVideoMetadataAction(
       await removeRecordingObjects([storagePath]);
     }
 
+    if (error.code === UNIQUE_VIOLATION) {
+      return {
+        status: "error",
+        message: "Ese turno ya tiene una grabación asignada.",
+      };
+    }
+
     return {
       status: "error",
       message: "No fue posible guardar la grabación. Intenta nuevamente.",
@@ -157,10 +193,13 @@ export async function createVideoMetadataAction(
 
   revalidatePath("/mining/videos");
   revalidatePath("/mining");
+  revalidatePath("/mining/shifts");
 
   return {
     status: "success",
-    message: `Grabación ${parsed.data.externalId} registrada y vinculada a turnos compatibles.`,
+    message: shiftId
+      ? `Grabación ${parsed.data.externalId} guardada y asignada al turno seleccionado.`
+      : `Grabación ${parsed.data.externalId} guardada sin turno asignado.`,
   };
 }
 
