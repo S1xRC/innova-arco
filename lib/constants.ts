@@ -66,3 +66,22 @@ export const DEFAULT_DELETION_GRACE_DAYS = 30;
 export const APP_NAME = "Innova ARCO";
 export const APP_DESCRIPTION =
   "Plataforma para gestionar los derechos ARCO de conductores en empresas mineras.";
+
+/**
+ * Maximum recording size accepted by the app.
+ *
+ * Must stay <= the Supabase Storage "Global file size limit" of the project
+ * (50 MB on the Free plan). Override it with `STORAGE_MAX_UPLOAD_MB` when you
+ * raise the Supabase limit.
+ */
+export const DEFAULT_MAX_UPLOAD_MB = 50;
+
+export function resolveMaxUploadMb(): number {
+  const raw = Number((process.env.STORAGE_MAX_UPLOAD_MB ?? "").trim());
+  return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_MAX_UPLOAD_MB;
+}
+
+/** Human readable size, e.g. "32.0 MB". */
+export function formatMegabytes(bytes: number): string {
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}

@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/lib/supabase/client";
+import { formatMegabytes } from "@/lib/constants";
 import { initialActionState } from "@/types/actions";
 
 export interface ProviderOption {
@@ -38,10 +39,12 @@ export function VideoUploadForm({
   providers,
   defaultDate,
   defaultTime,
+  maxUploadMb,
 }: {
   providers: ProviderOption[];
   defaultDate: string;
   defaultTime: string;
+  maxUploadMb: number;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, actionPending] = useActionState(
@@ -73,9 +76,25 @@ export function VideoUploadForm({
     const file = fileInput?.files?.[0];
     const externalId = String(data.get("externalId") ?? "").trim();
 
+    // The file itself must never travel inside the Server Action payload:
+    // Next.js caps that body at 1 MB (`serverActions.bodySizeLimit`). It is
+    // uploaded straight to Supabase Storage; only its path is sent to the action.
+    data.delete("file");
+
     if (file && file.size > 0) {
       if (!externalId) {
         toast.error("Ingresa el identificador del video/cámara antes de subir.");
+        return;
+      }
+
+      const maxBytes = maxUploadMb * 1024 * 1024;
+
+      if (file.size > maxBytes) {
+        toast.error(
+          `El archivo pesa ${formatMegabytes(
+            file.size,
+          )} y el máximo permitido es ${maxUploadMb} MB.`,
+        );
         return;
       }
 
@@ -100,6 +119,12 @@ export function VideoUploadForm({
         }
 
         data.set("storagePath", target.path);
+        data.set("storageSize", String(file.size));
+        data.set("storageMime", file.type || "");
+      } catch (error) {
+        console.error("[ARCO] upload error:", error);
+        toast.error("No fue posible subir el archivo. Intenta nuevamente.");
+        return;
       } finally {
         setUploading(false);
       }
@@ -200,8 +225,8 @@ export function VideoUploadForm({
         <Label htmlFor="file">Archivo de video (opcional)</Label>
         <Input id="file" name="file" type="file" accept="video/*" />
         <p className="text-muted-foreground text-xs">
-          El archivo se sube directamente a Supabase Storage. Si no adjuntas
-          archivo, se registra solo la metadata.
+          El archivo se sube directamente a Supabase Storage (máximo{" "}
+          {maxUploadMb} MB). Si no adjuntas archivo, se registra solo la metadata.
         </p>
       </div>
 

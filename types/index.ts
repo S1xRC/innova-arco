@@ -115,6 +115,7 @@ export interface MiningVideoRow {
   shiftStartsAt: string | null;
   driverEmail: string | null;
   extraInfo: Json | null;
+  storageSize: number | null;
 }
 
 /** A company member (driver or staff) with their membership state. */

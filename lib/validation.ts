@@ -58,6 +58,13 @@ export const createVideoMetadataSchema = z.object({
     .optional()
     .or(z.literal("")),
   storagePath: z.string().trim().optional().or(z.literal("")),
+  storageSize: z.coerce.number().int().nonnegative().optional(),
+  storageMime: z
+    .string()
+    .trim()
+    .max(120, "El tipo de archivo es demasiado largo")
+    .optional()
+    .or(z.literal("")),
 });
 
 export type CreateVideoMetadataInput = z.infer<

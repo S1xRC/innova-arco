@@ -393,6 +393,21 @@ límite de tamaño de Vercel). La `storage_path` se guarda en
 `video_metadata` y todas las lecturas/borrados se hacen en el servidor con
 `service_role` (`lib/storage.ts`).
 
+**Límites de tamaño (importante):**
+
+- El archivo se sube **directo a Supabase** con una *signed upload URL*, por lo
+  que **no** pasa por Vercel ni por un Server Action (no aplica el límite de
+  1 MB de los Server Actions de Next.js, que solo afecta a la metadata).
+- El tope lo pone **Supabase Storage**: *global file size limit* = **50 MB en el
+  plan Free** (hasta 500 GB en Pro+). El bucket `recordings` se fija a 50 MB en la
+  migración `0010`.
+- La app valida el tamaño en el navegador y muestra un mensaje claro; el máximo
+  se define con `DEFAULT_MAX_UPLOAD_MB` (`lib/constants.ts`) y se puede
+  sobreescribir con la variable `STORAGE_MAX_UPLOAD_MB`.
+- Para subir archivos mayores: sube el límite global en **Supabase → Storage →
+  Settings**, ajusta el bucket (migración `0010`, en bytes) y define
+  `STORAGE_MAX_UPLOAD_MB` en Vercel.
+
 **Flujo del reclamo:**
 
 1. El conductor pulsa **Solicitar borrado** sobre una grabación asignada a su

@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireProfile } from "@/lib/auth";
 import { combineDateTime } from "@/lib/format";
 import { purgeRecording } from "@/lib/recordings";
-import { buildRecordingPath, createUploadTarget } from "@/lib/storage";
+import { buildRecordingPath, createUploadTarget, removeRecordingObjects } from "@/lib/storage";
 import { createClient } from "@/lib/supabase/server";
 import {
   createVideoMetadataSchema,
@@ -98,6 +98,8 @@ export async function createVideoMetadataAction(
     providerId: String(formData.get("providerId") ?? ""),
     extraInfo: String(formData.get("extraInfo") ?? ""),
     storagePath: String(formData.get("storagePath") ?? ""),
+    storageSize: String(formData.get("storageSize") ?? ""),
+    storageMime: String(formData.get("storageMime") ?? ""),
   });
 
   if (!parsed.success) {
@@ -119,6 +121,13 @@ export async function createVideoMetadataAction(
 
   const supabase = await createClient();
 
+  const storagePath = parsed.data.storagePath || null;
+  const storageSize =
+    parsed.data.storageSize && parsed.data.storageSize > 0
+      ? parsed.data.storageSize
+      : null;
+  const storageMime = parsed.data.storageMime || null;
+
   const { error } = await supabase.from("video_metadata").insert({
     mining_id: profile.companyId,
     provider_id: parsed.data.providerId || null,
@@ -126,12 +135,20 @@ export async function createVideoMetadataAction(
     license_plate: parsed.data.licensePlate,
     recorded_at: recordedAt.toISOString(),
     extra_info: parseExtraInfo(parsed.data.extraInfo),
-    storage_path: parsed.data.storagePath || null,
+    storage_path: storagePath,
+    storage_size: storageSize,
+    storage_mime: storageMime,
     created_by: profile.id,
   });
 
   if (error) {
     console.error("[ARCO] createVideoMetadataAction:", error.message);
+
+    // Do not leave an orphaned object in Storage when the row fails.
+    if (storagePath) {
+      await removeRecordingObjects([storagePath]);
+    }
+
     return {
       status: "error",
       message: "No fue posible guardar la grabación. Intenta nuevamente.",

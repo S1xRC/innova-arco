@@ -9,6 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatMegabytes } from "@/lib/constants";
 import { formatDateTime } from "@/lib/format";
 import type { MiningVideoRow } from "@/types";
 
@@ -36,6 +37,7 @@ export function MiningVideosTable({ videos }: { videos: MiningVideoRow[] }) {
           <TableHead>Conductor</TableHead>
           <TableHead>Proveedora</TableHead>
           <TableHead>Info extra</TableHead>
+          <TableHead>Tamaño</TableHead>
           <TableHead>Estado</TableHead>
           <TableHead className="text-right">Acción</TableHead>
         </TableRow>
@@ -56,6 +58,9 @@ export function MiningVideosTable({ videos }: { videos: MiningVideoRow[] }) {
             </TableCell>
             <TableCell className="text-muted-foreground max-w-48 truncate text-xs">
               {extraInfoLabel(video.extraInfo)}
+            </TableCell>
+            <TableCell className="text-muted-foreground text-xs">
+              {video.storageSize ? formatMegabytes(video.storageSize) : "—"}
             </TableCell>
             <TableCell>
               {video.deletedAt ? (

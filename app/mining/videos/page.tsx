@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { MiningVideosTable } from "@/components/mining-videos-table";
 import { VideoUploadForm, type ProviderOption } from "@/components/video-upload-form";
 import { requireCompany } from "@/lib/auth";
+import { resolveMaxUploadMb } from "@/lib/constants";
 import { toDateInputValue, toTimeInputValue } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import type { MiningVideoRow } from "@/types";
@@ -24,7 +25,7 @@ export default async function MiningVideosPage() {
     supabase
       .from("video_metadata")
       .select(
-        "id, external_id, license_plate, recorded_at, provider_id, storage_path, deleted_at, shift_id, extra_info",
+        "id, external_id, license_plate, recorded_at, provider_id, storage_path, storage_size, deleted_at, shift_id, extra_info",
       )
       .eq("mining_id", profile.companyId)
       .order("recorded_at", { ascending: false }),
@@ -103,6 +104,7 @@ export default async function MiningVideosPage() {
       ? providersById.get(video.provider_id)?.name ?? null
       : null,
     storagePath: video.storage_path,
+    storageSize: video.storage_size,
     deletedAt: video.deleted_at,
     shiftStartsAt: null,
     driverEmail: video.shift_id
@@ -137,6 +139,7 @@ export default async function MiningVideosPage() {
               providers={providers}
               defaultDate={toDateInputValue(now)}
               defaultTime={toTimeInputValue(now)}
+              maxUploadMb={resolveMaxUploadMb()}
             />
           </CardContent>
         </Card>
