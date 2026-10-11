@@ -37,7 +37,7 @@ export default async function DriverDashboardPage() {
     ? await supabase
         .from("video_metadata")
         .select(
-          "id, license_plate, recorded_at, external_id, provider_id, deleted_at",
+          "id, license_plate, recorded_at, external_id, provider_id, deleted_at, storage_path",
         )
         .in("id", videoIds)
         .order("recorded_at", { ascending: false })
@@ -52,6 +52,64 @@ export default async function DriverDashboardPage() {
         .in("video_id", videoIds)
     : { data: [] };
 
+  // ARCO "right of access": who opened each of the driver's recordings.
+  const { data: accessLogs } = videoIds.length
+    ? await supabase
+        .from("recording_access_log")
+        .select("video_id, user_id, company_id, created_at")
+        .in("video_id", videoIds)
+        .order("created_at", { ascending: false })
+    : { data: [] };
+
+  const externalCompanyIds = [
+    ...new Set(
+      (accessLogs ?? [])
+        .filter((log) => log.user_id !== profile.id)
+        .map((log) => log.company_id)
+        .filter((value): value is string => Boolean(value)),
+    ),
+  ];
+
+  const { data: externalCompanies } = externalCompanyIds.length
+    ? await supabase
+        .from("companies")
+        .select("id, name")
+        .in("id", externalCompanyIds)
+    : { data: [] };
+
+  const externalCompaniesById = new Map(
+    (externalCompanies ?? []).map((company) => [company.id, company]),
+  );
+
+  const accessByVideo = new Map<
+    string,
+    {
+      count: number;
+      lastExternalAt: string | null;
+      lastExternalCompany: string | null;
+    }
+  >();
+
+  for (const log of accessLogs ?? []) {
+    const stats = accessByVideo.get(log.video_id) ?? {
+      count: 0,
+      lastExternalAt: null,
+      lastExternalCompany: null,
+    };
+
+    stats.count += 1;
+
+    // Logs are ordered newest-first, so the first external one wins.
+    if (log.user_id !== profile.id && !stats.lastExternalAt) {
+      stats.lastExternalAt = log.created_at;
+      stats.lastExternalCompany = log.company_id
+        ? externalCompaniesById.get(log.company_id)?.name ?? null
+        : null;
+    }
+
+    accessByVideo.set(log.video_id, stats);
+  }
+
   const providerIds = [
     ...new Set(
       (videos ?? [])
@@ -59,7 +117,6 @@ export default async function DriverDashboardPage() {
         .filter((id): id is string => Boolean(id)),
     ),
   ];
-
   const { data: providers } = providerIds.length
     ? await supabase.from("companies").select("id, name").in("id", providerIds)
     : { data: [] };
@@ -79,6 +136,7 @@ export default async function DriverDashboardPage() {
   const records: DriverRecording[] = (videos ?? []).map((video) => {
     const request = requestsByVideo.get(video.id);
     const shift = shiftByVideo.get(video.id);
+    const access = accessByVideo.get(video.id);
 
     return {
       id: video.id,
@@ -94,6 +152,10 @@ export default async function DriverDashboardPage() {
       scheduledDeletionAt: request?.scheduled_deletion_at ?? null,
       providerDeclaredAt: request?.provider_declared_at ?? null,
       deletedAt: video.deleted_at,
+      storagePath: video.storage_path,
+      accessCount: access?.count ?? 0,
+      lastAccessAt: access?.lastExternalAt ?? null,
+      lastAccessCompanyName: access?.lastExternalCompany ?? null,
     };
   });
 

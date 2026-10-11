@@ -3,6 +3,7 @@ import {
   requestDeletionAction,
 } from "@/actions/deletions";
 import { ActionButton } from "@/components/action-button";
+import { RecordingPlayer } from "@/components/recording-player";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -28,8 +29,10 @@ export function DriverRecordingsTable({
           <TableHead>Fecha</TableHead>
           <TableHead>Hora</TableHead>
           <TableHead>Proveedora</TableHead>
+          <TableHead>Video</TableHead>
           <TableHead>Borrado</TableHead>
           <TableHead>Proveedora declaró</TableHead>
+          <TableHead>Accesos</TableHead>
           <TableHead className="text-right">Acción</TableHead>
         </TableRow>
       </TableHeader>
@@ -40,6 +43,18 @@ export function DriverRecordingsTable({
             <TableCell>{formatDate(record.recordedAt)}</TableCell>
             <TableCell>{formatTime(record.recordedAt)}</TableCell>
             <TableCell>{record.providerName}</TableCell>
+            <TableCell>
+              {!record.deletedAt && record.storagePath ? (
+                <RecordingPlayer
+                  videoId={record.id}
+                  label={`${record.licensePlate} · ${formatDate(
+                    record.recordedAt,
+                  )}`}
+                />
+              ) : (
+                <span className="text-muted-foreground text-xs">—</span>
+              )}
+            </TableCell>
             <TableCell>
               {record.requestStatus === "PENDING" ? (
                 <div className="flex flex-col gap-1">
@@ -69,6 +84,23 @@ export function DriverRecordingsTable({
                 </Badge>
               ) : (
                 <Badge variant="outline">No</Badge>
+              )}
+            </TableCell>
+            <TableCell className="text-muted-foreground text-xs">
+              {record.accessCount > 0 ? (
+                <div className="flex flex-col gap-0.5">
+                  <span>{record.accessCount} acceso(s)</span>
+                  {record.lastAccessCompanyName ? (
+                    <span>
+                      {record.lastAccessCompanyName}
+                      {record.lastAccessAt
+                        ? ` · ${formatDate(record.lastAccessAt)}`
+                        : ""}
+                    </span>
+                  ) : null}
+                </div>
+              ) : (
+                "—"
               )}
             </TableCell>
             <TableCell className="text-right">

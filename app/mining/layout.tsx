@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { href: "/mining/members", label: "Conductores" },
   { href: "/mining/providers", label: "Proveedoras" },
   { href: "/mining/claims", label: "Reclamos" },
+  { href: "/mining/access", label: "Accesos" },
   { href: "/mining/settings", label: "Ajustes" },
 ];
 

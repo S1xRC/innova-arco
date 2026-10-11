@@ -1,5 +1,6 @@
 import { deleteRecordingNowAction } from "@/actions/videos";
 import { ActionButton } from "@/components/action-button";
+import { RecordingPlayer } from "@/components/recording-player";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -38,6 +39,7 @@ export function MiningVideosTable({ videos }: { videos: MiningVideoRow[] }) {
           <TableHead>Proveedora</TableHead>
           <TableHead>Info extra</TableHead>
           <TableHead>Tamaño</TableHead>
+          <TableHead>Video</TableHead>
           <TableHead>Estado</TableHead>
           <TableHead className="text-right">Acción</TableHead>
         </TableRow>
@@ -61,6 +63,18 @@ export function MiningVideosTable({ videos }: { videos: MiningVideoRow[] }) {
             </TableCell>
             <TableCell className="text-muted-foreground text-xs">
               {video.storageSize ? formatMegabytes(video.storageSize) : "—"}
+            </TableCell>
+            <TableCell>
+              {!video.deletedAt && video.storagePath ? (
+                <RecordingPlayer
+                  videoId={video.id}
+                  label={`${video.licensePlate} · ${formatDateTime(
+                    video.recordedAt,
+                  )}`}
+                />
+              ) : (
+                <span className="text-muted-foreground text-xs">—</span>
+              )}
             </TableCell>
             <TableCell>
               {video.deletedAt ? (

@@ -324,6 +324,32 @@ export interface Database {
           created_at?: string;
         }
       >;
+      recording_access_log: DbTable<
+        {
+          id: string;
+          video_id: string;
+          user_id: string;
+          company_id: string | null;
+          action: string;
+          created_at: string;
+        },
+        {
+          id?: string;
+          video_id: string;
+          user_id: string;
+          company_id?: string | null;
+          action?: string;
+          created_at?: string;
+        },
+        {
+          id?: string;
+          video_id?: string;
+          user_id?: string;
+          company_id?: string | null;
+          action?: string;
+          created_at?: string;
+        }
+      >;
     };
     Views: Record<string, never>;
     Functions: {

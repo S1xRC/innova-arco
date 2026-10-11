@@ -56,6 +56,10 @@ export interface DriverRecording {
   scheduledDeletionAt: string | null;
   providerDeclaredAt: string | null;
   deletedAt: string | null;
+  storagePath: string | null;
+  accessCount: number;
+  lastAccessAt: string | null;
+  lastAccessCompanyName: string | null;
 }
 
 /** A shift (turno) as shown in the mining company dashboard. */
@@ -116,6 +120,17 @@ export interface MiningVideoRow {
   driverEmail: string | null;
   extraInfo: Json | null;
   storageSize: number | null;
+}
+
+/** One row of the recording access log (ARCO "acceso"). */
+export interface AccessLogRow {
+  id: string;
+  createdAt: string;
+  action: string;
+  licensePlate: string;
+  recordedAt: string;
+  userEmail: string;
+  companyName: string | null;
 }
 
 /** A company member (driver or staff) with their membership state. */

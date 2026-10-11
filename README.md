@@ -106,6 +106,8 @@ Cada archivo es idempotente, así que puedes volver a ejecutarlos sin romper nad
 | `0007_policies.sql` | RLS multi-tenant para las tres roles. |
 | `0008_triggers.sql` | `handle_new_user` con invitaciones, *matching* automático video↔turno y ciclo de los reclamos. |
 | `0009_deletion_cron.sql` | Crea el bucket privado `recordings` y programa el borrado diario con `pg_cron`. |
+| `0010_storage_limits.sql` | Fija el límite de tamaño del bucket `recordings` (50 MB). |
+| `0011_recording_access_log.sql` | Bitácora inmutable de accesos a grabaciones (ARCO «acceso»). |
 
 **Opción A — SQL Editor (sin instalar nada)**
 
@@ -287,7 +289,7 @@ Abre <http://localhost:3000> e inicia sesión con Google.
 | Sin empresa activa | `/onboarding` (aceptar invitación o registrar empresa) |
 | DRIVER | `/driver` |
 | PROVIDER | `/provider` · `/provider/deletions` · `/provider/relations` |
-| MINING | `/mining` · `/mining/shifts` · `/mining/videos` · `/mining/members` · `/mining/providers` · `/mining/claims` · `/mining/settings` |
+| MINING | `/mining` · `/mining/shifts` · `/mining/videos` · `/mining/members` · `/mining/providers` · `/mining/claims` · `/mining/access` · `/mining/settings` |
 | Cualquiera (con sesión) | `/invitations` (aceptar invitaciones nuevas) · `/admin` (solo platform admin) |
 
 ---
@@ -307,7 +309,8 @@ Innova/
 │  ├─ provider/                   # resumen · deletions (tickets) · relations
 │  ├─ admin/                      # platform admin: asignación libre de roles
 │  ├─ auth/callback/route.ts      # intercambio code → session (PKCE)
-│  └─ api/cron/process-deletions/route.ts  # borrado automático vencido
+│  ├─ api/cron/process-deletions/route.ts  # borrado automático vencido
+│  └─ api/recordings/[id]/route.ts         # streaming del video (URL nunca expuesta)
 ├─ actions/                       # Server Actions (auth, invitations, roles, shifts, videos, deletions, company)
 ├─ components/
 │  ├─ ui/                         # primitivas shadcn/ui (Tailwind v4)
@@ -363,6 +366,7 @@ Todas las tablas tienen RLS activado. Las políticas usan funciones
 | `shifts` | Donde `driver_user_id = auth.uid()` | Vía relaciones | CRUD de su empresa |
 | `video_metadata` | Asignados vía `shifts.matched_video_id` | Donde `provider_id = empresa` | CRUD de su empresa |
 | `deletion_requests` | `driver_id = auth.uid()` (+ insert si está asignado) | Lectura + **update** solo de `provider_declared_*` | Lectura + update |
+| `recording_access_log` | Sus accesos + los de sus grabaciones asignadas | — | Los accesos a sus grabaciones (+ admin) |
 | `user_invites` | — | — | — (RLS sin políticas: solo `service_role`) |
 
 Guardas y automatismos:
@@ -426,6 +430,35 @@ límite de tamaño de Vercel). La `storage_path` se guarda en
 
 ---
 
+## 8.ter Visualización de video y registro de accesos
+
+El conductor y la empresa minera pueden **reproducir** las grabaciones desde la
+propia app, **sin exponer la URL de Storage** y **sin facilitar la descarga**:
+
+- La reproducción apunta a `GET /api/recordings/<id>` (proxy propio). El
+  navegador **nunca ve** la URL de Supabase.
+- El *route handler* **autoriza con RLS** (el conductor solo lo asignado a su
+  turno; la minera solo lo suyo), firma una URL interna de 60 s, reenvía el
+  header `Range` (para poder adelantar) y responde con
+  `Content-Disposition: inline` y `Cache-Control: private, no-store`.
+- El reproductor oculta la descarga (`controlsList="nodownload"`,
+  `disablePictureInPicture`, sin menú contextual) y **no existe** endpoint de
+  descarga.
+  > Aclaración: es una medida de **fricción**, no DRM. El video debe llegar al
+  > navegador para verse, así que un usuario decidido siempre podría capturarlo
+  > (DevTools / grabación de pantalla).
+
+**Registro de accesos (ARCO «derecho de acceso»):** cada reproducción se registra
+en `recording_access_log` (una fila por reproducción, deduplicando los `Range`):
+
+- La **minera** lo ve en `/mining/access` (fecha, grabación, usuario, empresa,
+  acción).
+- El **conductor** ve en `/driver` cuántas veces se accedió a cada una de sus
+  grabaciones y **qué empresa** lo vio (por privacidad se muestra la empresa y la
+  fecha, no el correo del empleado).
+
+---
+
 ## 9. Despliegue en Vercel
 
 1. En Supabase, ejecuta **todas** las migraciones (`0001`…`0009`) en el SQL Editor.
@@ -468,9 +501,12 @@ Con la app desplegada y tres cuentas de Google (una por rol):
       como *Grabación asignada* en el turno.
 - [ ] En `/mining/settings` pongo **Instantáneo (demo)** y el borrado se ejecuta al
       instante; con **30 días** queda programado.
+- [ ] En `/mining/videos` reproduzco una grabación con **Ver** y el acceso aparece
+      en `/mining/access`.
 
 **Conductor**
 - [ ] En `/driver` veo las grabaciones asignadas a mis turnos.
+- [ ] Reproduzco mi grabación con **Ver** y veo el nº de accesos y qué empresa la vio.
 - [ ] Al pulsar **Solicitar borrado** aparece la fecha de borrado y el estado.
 - [ ] Tras el borrado, veo *Eliminado* y si la proveedora declaró el borrado.
 
